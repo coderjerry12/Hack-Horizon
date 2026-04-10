@@ -6,7 +6,7 @@ const BACKEND_URL = "http://localhost:8000";
 
 export default function Dashboard() {
   const [model, setModel] = useState("gemini"); // "gemini" | "ollama"
-  const [view, setView] = useState("dashboard"); // "dashboard" | "camera" | "report" | "hospitals"
+  const [view, setView] = useState("dashboard"); // "dashboard" | "camera" | "report" | "hospitals" | "sos"
   const videoRef = useRef(null);
   const [reportData, setReportData] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -16,6 +16,11 @@ export default function Dashboard() {
   const [hospitalsError, setHospitalsError] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [searchRadius, setSearchRadius] = useState(5); // in km
+  
+  // SOS State
+  const [sosResult, setSosResult] = useState(null);
+  const [sosLoading, setSosLoading] = useState(false);
+  const [sosError, setSosError] = useState(null);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -140,8 +145,65 @@ export default function Dashboard() {
     }
   };
 
-  const triggerSOS = () => {
-    alert("SOS Triggered! Location and medical details shared with emergency contacts.");
+  const triggerSOS = async () => {
+    if (!userLocation) {
+      setSosError("Location access is required. Enabling location permissions...");
+      setView("sos");
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            setTimeout(() => triggerSOS(), 500);
+          },
+          (err) => {
+            setSosError("Could not access location. " + err.message);
+            setView("sos");
+          }
+        );
+      }
+      return;
+    }
+
+    setSosLoading(true);
+    setSosError(null);
+    setSosResult(null);
+
+    try {
+      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+
+      if (!token) {
+        setSosError("Please log in first to use SOS.");
+        setView("sos");
+        return;
+      }
+
+      const res = await fetch(`${BACKEND_URL}/api/v1/sos/trigger`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: JSON.stringify({
+          lat: userLocation.lat,
+          lng: userLocation.lng
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setSosResult(data.data);
+        setView("sos");
+      } else {
+        setSosError(data.message || "SOS failed to dispatch");
+        setView("sos");
+      }
+    } catch (err) {
+      setSosError("Could not connect to server. " + err.message);
+      setView("sos");
+    } finally {
+      setSosLoading(false);
+    }
   };
 
   const handleImageUpload = async (e) => {
@@ -229,19 +291,23 @@ export default function Dashboard() {
               className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6"
             >
               <div
-                onClick={triggerSOS}
-                className="bg-red-50 cursor-pointer rounded-[2rem] p-2 border border-red-200/50 shadow-[0_20px_40px_-15px_rgba(220,38,38,0.1)] active:scale-[0.98] transition-transform group"
+                onClick={() => !sosLoading && triggerSOS()}
+                className={`${sosLoading ? "opacity-75 cursor-not-allowed" : "cursor-pointer"} bg-red-50 rounded-[2rem] p-2 border border-red-200/50 shadow-[0_20px_40px_-15px_rgba(220,38,38,0.1)] active:scale-[0.98] transition-transform group`}
               >
                 <div className="bg-red-100/50 rounded-[calc(2rem-0.5rem)] p-10 h-full flex flex-col items-center justify-center text-center gap-4">
                   <div className="relative">
-                    <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-20"></div>
+                    <div className={`absolute inset-0 bg-red-500 rounded-full ${sosLoading ? "" : "animate-ping"} opacity-20`}></div>
                     <div className="w-24 h-24 rounded-full bg-red-500 shadow-xl shadow-red-500/30 flex items-center justify-center text-white relative z-10 transition-transform group-hover:scale-105">
-                      <Siren weight="fill" className="w-10 h-10" />
+                      {sosLoading ? (
+                        <CircleNotch weight="bold" className="w-10 h-10 animate-spin" />
+                      ) : (
+                        <Siren weight="fill" className="w-10 h-10" />
+                      )}
                     </div>
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold tracking-tighter text-red-950">Emergency SOS</h2>
-                    <p className="text-red-900/70 text-sm mt-2 max-w-[25ch] mx-auto">Alert contacts instantly with live location & baseline medical profile</p>
+                    <h2 className="text-2xl font-bold tracking-tighter text-red-950">{sosLoading ? "Dispatching..." : "Emergency SOS"}</h2>
+                    <p className="text-red-900/70 text-sm mt-2 max-w-[25ch] mx-auto">{sosLoading ? "Finding nearest hospital..." : "Alert contacts instantly with live location & baseline medical profile"}</p>
                   </div>
                 </div>
               </div>
@@ -528,6 +594,164 @@ export default function Dashboard() {
               >
                 Return to Dashboard
               </button>
+            </motion.div>
+          )}
+
+          {view === "sos" && sosResult && (
+            <motion.div
+              key="sos"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="mt-6 flex flex-col gap-4"
+            >
+              {/* Success Banner */}
+              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-3xl p-8 text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-emerald-500 rounded-full animate-pulse opacity-20"></div>
+                    <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center text-white relative z-10">
+                      <svg className="w-8 h-8 text-white animation: bounceInDown" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <h2 className="text-3xl font-bold text-emerald-900 mb-2">🚨 SOS Dispatched!</h2>
+                <p className="text-emerald-700 mb-1">Emergency contacts have been notified</p>
+                <p className="text-emerald-600 text-sm">{new Date(sosResult.timestamp).toLocaleTimeString()}</p>
+              </div>
+
+              {/* Hospital Details */}
+              <div className="bg-white rounded-2.5rem p-6 border border-blue-200/50 shadow-lg">
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-blue-100/50">
+                  <div className="w-14 h-14 rounded-full bg-blue-500 text-white flex items-center justify-center flex-shrink-0">
+                    <Hospital weight="duotone" className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-zinc-950">{sosResult.hospital.name}</h3>
+                    <p className="text-blue-600 font-semibold text-sm">Assigned Emergency Hospital</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Address */}
+                  {sosResult.hospital.address && (
+                    <div className="flex gap-3">
+                      <MapPin weight="fill" className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Address</p>
+                        <p className="text-zinc-900 font-medium">{sosResult.hospital.address}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phone */}
+                  {sosResult.hospital.phone && (
+                    <div className="flex gap-3">
+                      <Phone weight="fill" className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Contact</p>
+                        <a href={`tel:${sosResult.hospital.phone}`} className="text-emerald-600 font-medium hover:underline">
+                          {sosResult.hospital.phone}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Website */}
+                  {sosResult.hospital.website && (
+                    <div className="flex gap-3">
+                      <Globe weight="fill" className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Website</p>
+                        <a href={sosResult.hospital.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:underline truncate">
+                          {sosResult.hospital.website}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ETA */}
+                  <div className="flex gap-3 mt-6 pt-4 border-t border-zinc-200">
+                    <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v-3h8v3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Estimated Travel Time</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-bold text-red-600">{sosResult.routing.travelTimeInMinutes}</p>
+                        <p className="text-zinc-600 font-medium">min ({sosResult.routing.distance} km)</p>
+                      </div>
+                      {sosResult.routing.note && (
+                        <p className="text-xs text-zinc-500 italic mt-1">{sosResult.routing.note}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Directions Button */}
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${sosResult.hospital.location.lat},${sosResult.hospital.location.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full mt-6 py-4 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition-all"
+                >
+                  <NavigationArrow weight="fill" className="w-5 h-5" />
+                  Get Directions Now
+                </a>
+              </div>
+
+              {/* User Location */}
+              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
+                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-2">Your Location</p>
+                <p className="text-sm font-mono text-zinc-700">
+                  Lat: {sosResult.userLocation.lat.toFixed(6)}, Lng: {sosResult.userLocation.lng.toFixed(6)}
+                </p>
+              </div>
+
+              {/* Return Button */}
+              <button
+                onClick={() => setView("dashboard")}
+                className="w-full py-4 rounded-full bg-zinc-950 text-white font-medium active:scale-[0.98] transition-transform"
+              >
+                Return to Dashboard
+              </button>
+            </motion.div>
+          )}
+
+          {view === "sos" && sosError && (
+            <motion.div
+              key="sos-error"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 flex flex-col gap-4"
+            >
+              <div className="bg-red-50 border-2 border-red-200 rounded-3xl p-8">
+                <div className="flex items-center gap-4 mb-4">
+                  <Siren weight="fill" className="w-8 h-8 text-red-600" />
+                  <h2 className="text-2xl font-bold text-red-900">SOS Error</h2>
+                </div>
+                <p className="text-red-700 mb-6">{sosError}</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setSosError(null);
+                      setSosLoading(false);
+                      if (userLocation) triggerSOS();
+                    }}
+                    className="flex-1 py-3 rounded-full bg-red-600 text-white font-medium hover:bg-red-700 active:scale-95 transition-all"
+                  >
+                    Retry SOS
+                  </button>
+                  <button
+                    onClick={() => setView("dashboard")}
+                    className="flex-1 py-3 rounded-full bg-zinc-200 text-zinc-900 font-medium hover:bg-zinc-300 active:scale-95 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
