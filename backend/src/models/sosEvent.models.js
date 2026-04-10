@@ -40,7 +40,7 @@ const sosEventSchema = new Schema(
         },
         source: {
             type: String,
-            enum: ["user", "bystander", "crash_detection"],
+            enum: ["user", "bystander", "crash_detection", "ai_detection"],
             default: "user",
         },
         bystanderInfo: {

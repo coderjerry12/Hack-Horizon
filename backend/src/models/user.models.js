@@ -56,6 +56,11 @@ const userSchema = new Schema({
         type: String,
         trim: true
     },
+    role: {
+        type: String,
+        enum: ["user", "admin"],
+        default: "user"
+    },
     isSetupComplete: {
         type: Boolean,
         default: false
