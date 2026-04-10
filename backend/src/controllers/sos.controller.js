@@ -1,0 +1,144 @@
+import { SOS } from '../models/sos.model.js';
+import { Resource } from '../models/resource.model.js';
+import { User } from '../models/user.model.js';
+import { ApiError } from '../utils/ApiError.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { generateCrisisGuidance, generateEmergencySummary, generateDebriefPrompt } from '../utils/aiService.js';
+import { SOS_STATUS } from '../constant.js';
+import { emitSOSResolved } from '../socket/index.js';
+import { sendSOSAlert } from '../services/emailAlertService.js';
+import { getNearbyHospitals } from '../services/hospital.service.js';
+
+export const createSOS = asyncHandler(async (req, res) => {
+  const { crisisType, longitude, latitude, address, isAnonymous, broadcastRadius } = req.body;
+  if (!crisisType || longitude === undefined || latitude === undefined) throw new ApiError(400, 'Crisis type and location are required');
+  const normalizedRadius = Number(broadcastRadius) || 1000;
+  if (![500, 1000, 2000].includes(normalizedRadius)) throw new ApiError(400, 'Broadcast radius must be 500, 1000, or 2000');
+
+  const sos = await SOS.create({ broadcaster: req.user._id, crisisType, location: { type: 'Point', coordinates: [Number(longitude), Number(latitude)] }, address: address || '', isAnonymous: isAnonymous || false, broadcastRadius: normalizedRadius });
+  const [guidance, emergencySummary] = await Promise.all([generateCrisisGuidance(crisisType, address), generateEmergencySummary(crisisType, address, normalizedRadius)]);
+  sos.aiGuidance = guidance;
+  sos.emergencySummary = emergencySummary;
+  await sos.save();
+
+  const nearbyResources = await Resource.find({ location: { $near: { $geometry: { type: 'Point', coordinates: [Number(longitude), Number(latitude)] }, $maxDistance: 5000 } }, type: { $in: ['hospital', 'police_station', 'fire_station'] } }).limit(5);
+
+  // Send email alert asynchronously (don't block response)
+  const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+  const broadcaster = await User.findById(req.user._id).select('name phone medicalHistory');
+  sendSOSAlert({
+    broadcasterName: broadcaster?.name,
+    crisisType,
+    address,
+    latitude: Number(latitude),
+    longitude: Number(longitude),
+    mapsLink,
+    guidance,
+    medicalHistory: broadcaster?.medicalHistory
+  }).catch(err => console.error('[SOS] Email alert failed:', err.message));
+
+  res.status(201).json(new ApiResponse(201, { sos, guidance, nearbyResources }, 'SOS created successfully'));
+});
+
+export const resolveSOS = asyncHandler(async (req, res) => {
+  const { sosId } = req.params;
+  const sos = await SOS.findById(sosId);
+  if (!sos) throw new ApiError(404, 'SOS not found');
+  if (sos.broadcaster.toString() !== req.user._id.toString()) throw new ApiError(403, 'Only broadcaster can resolve SOS');
+  sos.status = SOS_STATUS.RESOLVED;
+  sos.resolvedAt = new Date();
+  sos.timeToResolution = (Date.now() - sos.createdAt) / 1000;
+  sos.welfareCheckDue = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await sos.save();
+  const debrief = await generateDebriefPrompt(sos.crisisType, sos.timeToResolution, sos.responders.length);
+  emitSOSResolved({ sosId: sos._id.toString(), resolvedAt: sos.resolvedAt, debrief, broadcasterId: sos.broadcaster, responderIds: sos.responders.map(e => e.user) });
+  res.json(new ApiResponse(200, { sos, debrief }, 'SOS resolved'));
+});
+
+export const rateResponder = asyncHandler(async (req, res) => {
+  const { sosId, responderId } = req.params;
+  const { rating } = req.body;
+  const sos = await SOS.findById(sosId);
+  if (!sos || sos.broadcaster.toString() !== req.user._id.toString()) throw new ApiError(403, 'Unauthorized');
+  const idx = sos.responders.findIndex(r => r.user.toString() === responderId);
+  if (idx === -1) throw new ApiError(404, 'Responder not found');
+  sos.responders[idx].rating = rating;
+  await sos.save();
+  const user = await User.findById(responderId);
+  user.totalResponses += 1;
+  if (rating >= 3) user.positiveRatings += 1;
+  user.trustScore = user.totalResponses > 0 ? user.positiveRatings / user.totalResponses : 1.0;
+  await user.save();
+  res.json(new ApiResponse(200, null, 'Rating submitted'));
+});
+
+export const flagFalseAlert = asyncHandler(async (req, res) => {
+  const sos = await SOS.findById(req.params.sosId);
+  if (!sos) throw new ApiError(404, 'SOS not found');
+  sos.isFalseAlert = true;
+  await sos.save();
+  const broadcaster = await User.findById(sos.broadcaster);
+  broadcaster.falseAlerts += 1;
+  broadcaster.trustScore = Math.max(0, broadcaster.trustScore - 0.2);
+  if (broadcaster.trustScore < 0.3) broadcaster.isSuspended = true;
+  await broadcaster.save();
+  res.json(new ApiResponse(200, null, 'Alert flagged'));
+});
+
+export const getActiveSOS = asyncHandler(async (req, res) => {
+  const activeSOS = await SOS.find({ status: SOS_STATUS.ACTIVE }).populate('broadcaster', 'name phone avatar').populate('responders.user', 'name phone avatar').sort({ createdAt: -1 });
+  res.json(new ApiResponse(200, { activeSOS }, 'Active SOS retrieved'));
+});
+
+export const getPendingSOS = asyncHandler(async (req, res) => {
+  const pendingSOS = await SOS.find({ status: { $in: [SOS_STATUS.ACTIVE, SOS_STATUS.RESPONDING] } }).populate('broadcaster', 'name phone avatar').populate('responders.user', 'name phone avatar').sort({ createdAt: -1 });
+  const safePendingSOS = pendingSOS.map(entry => {
+    const data = entry.toObject();
+    if (data.isAnonymous && data.broadcaster?._id?.toString() !== req.user?._id?.toString()) data.broadcaster = null;
+    return data;
+  });
+  res.json(new ApiResponse(200, { pendingSOS: safePendingSOS }, 'Pending SOS retrieved'));
+});
+
+export const getSOSById = asyncHandler(async (req, res) => {
+  const sos = await SOS.findById(req.params.sosId).populate('broadcaster', 'name phone avatar').populate('responders.user', 'name phone avatar skills trustScore');
+  if (!sos) throw new ApiError(404, 'SOS not found');
+  let safeSOS = sos.toObject();
+  if (safeSOS.isAnonymous && safeSOS.broadcaster?._id?.toString() !== req.user?._id?.toString()) safeSOS.broadcaster = null;
+  const [lng, lat] = safeSOS.location.coordinates;
+  const nearbyResources = await Resource.find({ location: { $near: { $geometry: { type: 'Point', coordinates: [lng, lat] }, $maxDistance: 5000 } } }).limit(20);
+  res.json(new ApiResponse(200, { sos: safeSOS, guidance: safeSOS.aiGuidance, emergencySummary: safeSOS.emergencySummary, nearbyResources }, 'SOS details retrieved'));
+});
+
+export const getMyHistory = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const [broadcasted, responded] = await Promise.all([
+    SOS.find({ broadcaster: userId }).populate('responders.user', 'name avatar skills trustScore').sort({ createdAt: -1 }).limit(50),
+    SOS.find({ 'responders.user': userId }).populate('broadcaster', 'name avatar').populate('responders.user', 'name avatar skills trustScore').sort({ createdAt: -1 }).limit(50)
+  ]);
+  const respondedWithRating = responded.map(sos => {
+    const entry = sos.responders.find(r => r.user?._id?.toString() === userId.toString());
+    return { ...sos.toObject(), myRating: entry?.rating ?? null, myAcceptedAt: entry?.acceptedAt || null };
+  });
+  res.json(new ApiResponse(200, { broadcasted, responded: respondedWithRating }, 'History retrieved'));
+});
+
+export const getPendingWelfareChecks = asyncHandler(async (req, res) => {
+  const pendingChecks = await SOS.find({ broadcaster: req.user._id, status: SOS_STATUS.RESOLVED, welfareCheckDue: { $lte: new Date() }, welfareCheckResponse: null }).select('crisisType address resolvedAt welfareCheckDue welfareCheckSent').sort({ resolvedAt: -1 }).limit(10);
+  const ids = pendingChecks.map(s => s._id);
+  if (ids.length > 0) await SOS.updateMany({ _id: { $in: ids }, welfareCheckSent: false }, { $set: { welfareCheckSent: true } });
+  res.json(new ApiResponse(200, { welfareChecks: pendingChecks }, 'Pending welfare checks retrieved'));
+});
+
+export const respondToWelfareCheck = asyncHandler(async (req, res) => {
+  const { response } = req.body;
+  if (!['fine', 'need_help'].includes(response)) throw new ApiError(400, 'Response must be "fine" or "need_help"');
+  const sos = await SOS.findById(req.params.sosId);
+  if (!sos) throw new ApiError(404, 'SOS not found');
+  if (sos.broadcaster.toString() !== req.user._id.toString()) throw new ApiError(403, 'Only broadcaster can respond');
+  sos.welfareCheckResponse = response;
+  sos.welfareCheckRespondedAt = new Date();
+  await sos.save();
+  res.json(new ApiResponse(200, { sos }, 'Welfare check response recorded'));
+});

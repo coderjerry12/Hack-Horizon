@@ -1,27 +1,27 @@
-import User from '../models/user.models.js';
-import { ApiError } from '../utils/api-error.js';
-import { asyncHandler } from '../utils/async-handler.js';
 import jwt from 'jsonwebtoken';
+import { User } from '../models/user.model.js';
+import { ApiError } from '../utils/ApiError.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
-export const verifyJWT = asyncHandler(async (req, res, next) => {
-    const token =
-        req.cookies?.accessToken ||
-        req.header("Authorization")?.replace("Bearer ", "");
+export const authenticate = asyncHandler(async (req, res, next) => {
+  const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
+  if (!token) throw new ApiError(401, 'Authentication required');
 
-    if (!token) {
-        throw new ApiError(401, "Unauthorized Request");
-    }
-
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-
-    const user = await User.findById(decoded?._id).select(
-        "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
-    );
-
-    if (!user) {
-        throw new ApiError(401, "Invalid Access Token");
-    }
-
+  try {
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET || "access-token-secret");
+    const user = await User.findById(decoded._id).select('-password');
+    if (!user) throw new ApiError(401, 'Invalid token');
+    if (user.isSuspended) throw new ApiError(403, 'Account suspended');
     req.user = user;
     next();
+  } catch (error) {
+    throw new ApiError(401, error?.message || 'Invalid access token');
+  }
 });
+
+export const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) throw new ApiError(403, 'Access denied');
+    next();
+  };
+};
