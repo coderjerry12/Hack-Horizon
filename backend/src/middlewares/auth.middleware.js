@@ -11,7 +11,14 @@ export const authenticate = asyncHandler(async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET || "access-token-secret");
     const user = await User.findById(decoded._id).select('-password');
     if (!user) throw new ApiError(401, 'Invalid token');
-    if (user.isSuspended) throw new ApiError(403, 'Account suspended');
+    
+    // Allow login path to go through even if suspended (controller will handle it)
+    // or keep it strict. Actually, if they are already logged in but suspended, 
+    // we might want to block them from other API calls.
+    if (user.isSuspended && !req.path.includes('/auth/logout')) {
+      throw new ApiError(403, 'Account suspended. Please contact administrator.');
+    }
+    
     req.user = user;
     next();
   } catch (error) {
