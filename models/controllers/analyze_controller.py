@@ -14,7 +14,9 @@ last_ai_call = 0
 COOLDOWN = 60  # seconds between AI calls
 
 EMERGENCY_KEYWORDS = [
-    "emergency_detected", "emergency detected", "fallen", "unresponsive", "critical"
+    "emergency_detected", "emergency detected", "fallen", "unresponsive", "critical",
+    "collapsed", "unconscious", "bleeding", "severe", "accident", "injured", "trauma",
+    "danger", "immediate action", "urgent", "serious injury", "medical emergency"
 ]
 
 def analyze_frames():
@@ -22,7 +24,6 @@ def analyze_frames():
 
     # Always start fresh — frontend sends 3 frames per request
     frame_buffer = []
-    last_ai_call = 0 # reset to bypass cooldown for testing
 
     print(f"\n[ANALYZE] POST /api/analyze hit")
 
@@ -72,12 +73,23 @@ def analyze_frames():
         last_ai_call = time.time()
 
         analysis = llava_analyze(images) if model_provider == "llava" else gemini_analyze(images)
+        
+        print(f"[ANALYZE] AI Response: {analysis}")
 
-        is_emergency = any(kw in analysis.lower() for kw in EMERGENCY_KEYWORDS)
-        print(f"[ANALYZE] Result — Emergency: {is_emergency} | {analysis[:80]}...")
-
-        # Note: Email alerts are handled by the Node.js backend (Mailtrap)
-        # This endpoint only returns the AI analysis result
+        # Check for emergency indicators — case insensitive
+        analysis_lower = analysis.lower()
+        is_emergency = any(kw in analysis_lower for kw in EMERGENCY_KEYWORDS)
+        
+        # If not explicitly emergency, check for multiple danger indicators
+        if not is_emergency:
+            danger_indicators = ["appear", "risk", "danger", "abnormal", "unusual position", "need", "help", "assist"]
+            danger_count = sum(1 for indicator in danger_indicators if indicator in analysis_lower)
+            # If multiple danger indicators are found, flag as potential emergency
+            if danger_count >= 3:
+                is_emergency = True
+                print(f"[ANALYZE] Potential emergency detected (found {danger_count} danger indicators)")
+        
+        print(f"[ANALYZE] Result — Emergency: {is_emergency} | {analysis[:100]}...")
 
         return jsonify({"message": analysis, "emergency": is_emergency})
 
