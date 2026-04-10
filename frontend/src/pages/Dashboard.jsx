@@ -1,10 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Siren, Camera, FileText, Brain, ArrowsLeftRight, CircleNotch, Upload, Hospital, MapPin, Phone, Globe, NavigationArrow, Warning } from "@phosphor-icons/react";
+import { Siren, Camera, FileText, Brain, ArrowsLeftRight, CircleNotch, Upload, Hospital, MapPin, Phone, Globe, NavigationArrow, Warning, ShieldWarning, ClockCounterClockwise } from "@phosphor-icons/react";
+import useCrashDetection from "../hooks/useCrashDetection";
+import EmergencyMap from "../components/EmergencyMap";
 
 const BACKEND_URL = "http://localhost:8000";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [model, setModel] = useState("gemini"); // "gemini" | "ollama"
   const [view, setView] = useState("dashboard"); // "dashboard" | "camera" | "report" | "hospitals" | "sos"
   const videoRef = useRef(null);
@@ -15,6 +19,7 @@ export default function Dashboard() {
   const [hospitalsLoading, setHospitalsLoading] = useState(false);
   const [hospitalsError, setHospitalsError] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const userLocationRef = useRef(null);
   const [searchRadius, setSearchRadius] = useState(5); // in km
   
   // SOS State
@@ -22,14 +27,73 @@ export default function Dashboard() {
   const [sosLoading, setSosLoading] = useState(false);
   const [sosError, setSosError] = useState(null);
 
+  // Crash Detection
+  const { crashDetected, lastImpact, resetCrash, isSupported: crashDetectionSupported } = useCrashDetection();
+  const [crashCountdown, setCrashCountdown] = useState(null);
+  const crashTimerRef = useRef(null);
+  const crashIntervalRef = useRef(null);
+
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => console.warn("Geolocation error:", err.message)
-      );
-    }
+    if (!navigator.geolocation) return;
+
+    // Step 1: Quick initial position (low accuracy OK — avoids timeout)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(loc);
+        userLocationRef.current = loc;
+      },
+      () => {}, // silently ignore — watchPosition will retry
+      { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 }
+    );
+
+    // Step 2: Continuous high-accuracy updates (no timeout — keeps retrying)
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(loc);
+        userLocationRef.current = loc;
+      },
+      () => {}, // silently ignore errors — we already have fallback position
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
+
+  // Crash Detection: 5-second countdown → auto SOS
+  useEffect(() => {
+    if (!crashDetected) return;
+
+    setCrashCountdown(5);
+    crashIntervalRef.current = setInterval(() => {
+      setCrashCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(crashIntervalRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    crashTimerRef.current = setTimeout(() => {
+      resetCrash();
+      setCrashCountdown(null);
+      triggerSOS("crash_detection");
+    }, 5000);
+
+    return () => {
+      clearTimeout(crashTimerRef.current);
+      clearInterval(crashIntervalRef.current);
+    };
+  }, [crashDetected]);
+
+  const cancelCrashSOS = useCallback(() => {
+    clearTimeout(crashTimerRef.current);
+    clearInterval(crashIntervalRef.current);
+    setCrashCountdown(null);
+    resetCrash();
+  }, [resetCrash]);
 
   const fetchHospitals = async () => {
     if (!userLocation) {
@@ -112,11 +176,6 @@ export default function Dashboard() {
     const formData = new FormData();
     frames.forEach((blob, idx) => formData.append(`image${idx}`, blob, `frame${idx}.jpg`));
     formData.append("model_provider", model === "ollama" ? "llava" : "gemini");
-    formData.append("email_config", JSON.stringify({
-      name: "User",
-      phone: "123",
-      emergency_phone: "911", // Add real metadata from actual context if available
-    }));
 
     try {
       const res = await fetch("http://localhost:5003/api/analyze", {
@@ -129,8 +188,13 @@ export default function Dashboard() {
         modelUsed: model,
         diagnosis: data.message || "Unknown error occurred.",
         emergency: data.emergency,
-        recommendation: data.emergency ? "IMMEDIATE ATTENTION REQUIRED! Emergency contacts notifed." : "No critical danger detected currently. Rest and monitor."
+        recommendation: data.emergency ? "IMMEDIATE ATTENTION REQUIRED! Triggering SOS to find nearest hospital and notify emergency contacts..." : "No critical danger detected currently. Rest and monitor."
       });
+
+      // Auto-trigger SOS when AI detects emergency
+      if (data.emergency) {
+        setTimeout(() => triggerSOS("ai_detection"), 1500);
+      }
     } catch (error) {
       console.error("Analysis failed:", error);
       setReportData({
@@ -145,20 +209,27 @@ export default function Dashboard() {
     }
   };
 
-  const triggerSOS = async () => {
-    if (!userLocation) {
-      setSosError("Location access is required. Enabling location permissions...");
+  const triggerSOS = async (source = "user") => {
+    // Use ref to avoid stale closure when called from setTimeout
+    const loc = userLocationRef.current;
+
+    if (!loc) {
+      setSosError("Getting your location... Please wait.");
       setView("sos");
+      // Try to get location and retry
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            setTimeout(() => triggerSOS(), 500);
+            const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            setUserLocation(newLoc);
+            userLocationRef.current = newLoc;
+            // Retry immediately with the new location
+            triggerSOS(source);
           },
           (err) => {
             setSosError("Could not access location. " + err.message);
-            setView("sos");
-          }
+          },
+          { enableHighAccuracy: false, timeout: 10000 }
         );
       }
       return;
@@ -184,8 +255,9 @@ export default function Dashboard() {
           ...(token && { Authorization: `Bearer ${token}` })
         },
         body: JSON.stringify({
-          lat: userLocation.lat,
-          lng: userLocation.lng
+          lat: loc.lat,
+          lng: loc.lng,
+          source
         })
       });
 
@@ -219,11 +291,6 @@ export default function Dashboard() {
       formData.append(`image${i}`, file, `uploaded${i}.jpg`);
     }
     formData.append("model_provider", model === "ollama" ? "llava" : "gemini");
-    formData.append("email_config", JSON.stringify({
-      name: "User",
-      phone: "123",
-      emergency_phone: "911",
-    }));
 
     try {
       const res = await fetch("http://localhost:5003/api/analyze", {
@@ -236,8 +303,13 @@ export default function Dashboard() {
         modelUsed: model,
         diagnosis: data.message || "Unknown error occurred.",
         emergency: data.emergency,
-        recommendation: data.emergency ? "IMMEDIATE ATTENTION REQUIRED! Emergency contacts notifed." : "No critical danger detected currently. Rest and monitor."
+        recommendation: data.emergency ? "IMMEDIATE ATTENTION REQUIRED! Triggering SOS to find nearest hospital and notify emergency contacts..." : "No critical danger detected currently. Rest and monitor."
       });
+
+      // Auto-trigger SOS when AI detects emergency
+      if (data.emergency) {
+        setTimeout(() => triggerSOS("ai_detection"), 1500);
+      }
     } catch (error) {
       console.error("Analysis failed:", error);
       setReportData({
@@ -351,6 +423,21 @@ export default function Dashboard() {
                   <div>
                     <h2 className="text-xl font-bold tracking-tighter text-zinc-950">Nearby Hospitals</h2>
                     <p className="text-zinc-500 text-sm mt-1 max-w-[30ch] mx-auto">Find hospitals near you with directions & contact info</p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                onClick={() => navigate("/history")}
+                className="bg-white cursor-pointer rounded-[2rem] p-2 border border-zinc-200/50 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] active:scale-[0.98] transition-transform group md:col-span-2"
+              >
+                <div className="bg-amber-50/50 rounded-[calc(2rem-0.5rem)] p-6 h-full flex items-center gap-6">
+                  <div className="w-14 h-14 shrink-0 rounded-full bg-amber-500 shadow-xl shadow-amber-500/20 flex items-center justify-center text-white transition-transform group-hover:scale-105">
+                    <ClockCounterClockwise weight="duotone" className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold tracking-tighter text-zinc-950">SOS History</h2>
+                    <p className="text-zinc-500 text-sm mt-1">View past emergency alerts, response times, and assigned hospitals</p>
                   </div>
                 </div>
               </div>
@@ -508,6 +595,15 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Embedded Map */}
+              {userLocation && (
+                <EmergencyMap
+                  userLocation={userLocation}
+                  hospitals={hospitals}
+                  height="250px"
+                />
+              )}
 
               {hospitalsError && (
                 <div className="bg-red-50 border border-red-200/50 rounded-2xl p-4 flex items-center gap-3 text-red-800">
@@ -702,11 +798,21 @@ export default function Dashboard() {
                 </a>
               </div>
 
+              {/* SOS Map */}
+              {userLocation && (
+                <EmergencyMap
+                  userLocation={userLocation}
+                  hospitals={[sosResult.hospital]}
+                  selectedHospital={sosResult.hospital}
+                  height="220px"
+                />
+              )}
+
               {/* User Location */}
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
-                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-2">Your Location</p>
+                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-2">Your Location (Live)</p>
                 <p className="text-sm font-mono text-zinc-700">
-                  Lat: {sosResult.userLocation.lat.toFixed(6)}, Lng: {sosResult.userLocation.lng.toFixed(6)}
+                  Lat: {(userLocation?.lat || sosResult.userLocation.lat).toFixed(6)}, Lng: {(userLocation?.lng || sosResult.userLocation.lng).toFixed(6)}
                 </p>
               </div>
 
@@ -752,6 +858,53 @@ export default function Dashboard() {
                   </button>
                 </div>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Crash Detection Confirmation Modal */}
+        <AnimatePresence>
+          {crashCountdown !== null && (
+            <motion.div
+              key="crash-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-red-950/90 backdrop-blur-xl flex items-center justify-center p-6"
+            >
+              <motion.div
+                initial={{ scale: 0.8, y: 30 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.8, y: 30 }}
+                className="bg-white rounded-[2.5rem] p-10 max-w-md w-full text-center shadow-2xl"
+              >
+                <div className="relative mx-auto w-24 h-24 mb-6">
+                  <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-30"></div>
+                  <div className="relative w-24 h-24 rounded-full bg-red-500 flex items-center justify-center text-white z-10">
+                    <ShieldWarning weight="fill" className="w-12 h-12" />
+                  </div>
+                </div>
+                <h2 className="text-3xl font-black tracking-tighter text-red-950 mb-2">
+                  Impact Detected!
+                </h2>
+                <p className="text-zinc-600 mb-6">
+                  A sudden impact was detected. SOS will be triggered automatically in:
+                </p>
+                <div className="text-7xl font-black text-red-600 mb-8 tabular-nums">
+                  {crashCountdown}
+                </div>
+                {lastImpact && (
+                  <p className="text-xs text-zinc-400 mb-6 font-mono">
+                    Force: {lastImpact.magnitude} m/s²
+                  </p>
+                )}
+                <button
+                  onClick={cancelCrashSOS}
+                  className="w-full py-4 rounded-full bg-zinc-950 text-white font-bold text-lg active:scale-[0.97] transition-transform"
+                >
+                  I&apos;m OK — Cancel SOS
+                </button>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
