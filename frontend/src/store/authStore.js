@@ -20,6 +20,6 @@ export const useAuthStore = create(
       },
       logout: () => set({ user: null, accessToken: null, refreshToken: null })
     }),
-    { name: 'nearhelp-auth' }
+    { name: 'RakshaSetu-auth' }
   )
 );

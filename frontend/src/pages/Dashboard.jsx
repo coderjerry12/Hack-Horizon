@@ -15,7 +15,7 @@ import HospitalFinder from '../components/HospitalFinder';
 import {
   SignOut as LogOut, ClockCounterClockwise as History, Shield, MapPin, Bell, WarningCircle as AlertCircle, CaretRight as ChevronRight,
   User, UserPlus, X, Heartbeat as HeartPulse, ShieldCheck, Camera, Buildings as Building2,
-  NavigationArrow as Navigation, Clock, Pulse as Activity, TrendUp as TrendingUp, Lightning as Zap
+  NavigationArrow as Navigation, Clock, Pulse as Activity, Lightning as Zap
 } from '@phosphor-icons/react';
 import { Ambulance, FireTruck, PoliceCar, Lifebuoy, Check } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,6 +30,26 @@ function FitBounds({ userLocation, sosLocation }) {
       map.setView([sosLocation[0], sosLocation[1]], 15);
     }
   }, [map, userLocation, sosLocation]);
+  return null;
+}
+
+function FitLiveSOSBounds({ location, points }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!location) return;
+    if (!points?.length) {
+      map.setView([location.latitude, location.longitude], 13);
+      return;
+    }
+
+    const boundsPoints = [
+      [location.latitude, location.longitude],
+      ...points.map((p) => [p.location.coordinates[1], p.location.coordinates[0]])
+    ];
+    map.fitBounds(boundsPoints, { padding: [35, 35], maxZoom: 15 });
+  }, [map, location, points]);
+
   return null;
 }
 
@@ -201,7 +221,7 @@ function Dashboard() {
             <div className="w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center shadow-sm shadow-red-600/30">
               <Bell size={16} className="text-white" />
             </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">NearHelp</span>
+            <span className="font-bold text-slate-900 text-lg tracking-tight">RakshaSetu</span>
             {!isOnline && (
               <span className="badge-warning animate-pulse">Offline Mode</span>
             )}
@@ -290,6 +310,79 @@ function Dashboard() {
                       <span className="text-xs font-semibold text-slate-900">History</span>
                     </button>
                   </div>
+                </div>
+
+                {/* Live SOS Map */}
+                <div className="card-elevated overflow-hidden">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center"><Bell size={18} className="text-red-600" /></div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">Live SOS Map</p>
+                        <p className="text-xs text-slate-500">All active incidents around your location</p>
+                      </div>
+                    </div>
+                    <button onClick={fetchPendingSOS} className="text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl transition-colors">Refresh</button>
+                  </div>
+                  {pendingSOS.length === 0 ? (
+                    <div className="flex flex-col items-center py-14 text-center px-6">
+                      <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mb-4"><Shield size={24} className="text-green-600" /></div>
+                      <p className="font-semibold text-slate-900">No live SOS alerts</p>
+                      <p className="text-sm text-slate-500 mt-1">Your area is currently calm and monitored.</p>
+                    </div>
+                  ) : (
+                    <div className="grid lg:grid-cols-[1.5fr_1fr]">
+                      <div className="h-[360px] border-b lg:border-b-0 lg:border-r border-slate-100">
+                        <MapContainer center={[location.latitude, location.longitude]} zoom={13} className="h-full w-full" zoomControl={false} preferCanvas>
+                          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                          <FitLiveSOSBounds location={location} points={pendingSOS} />
+                          <Marker position={[location.latitude, location.longitude]} icon={userIcon}>
+                            <Popup>You are here</Popup>
+                          </Marker>
+                          {pendingSOS.map((sos) => {
+                            const [lng, lat] = sos.location.coordinates;
+                            return (
+                              <Marker key={sos._id} position={[lat, lng]} icon={sosPulseIcon}>
+                                <Popup>
+                                  <div className="text-xs">
+                                    <div className="font-semibold capitalize">{sos.crisisType}</div>
+                                    <div className="text-slate-500">{sos.address || 'Address unavailable'}</div>
+                                  </div>
+                                </Popup>
+                              </Marker>
+                            );
+                          })}
+                        </MapContainer>
+                      </div>
+                      <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100 bg-white">
+                        {pendingSOS.slice(0, 8).map((sos, index) => {
+                          const [lng, lat] = sos.location.coordinates;
+                          const km = getDistanceKm(location.latitude, location.longitude, lat, lng);
+                          return (
+                            <div key={sos._id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-bold uppercase">{sos.crisisType}</span>
+                                  <span className="text-[11px] text-slate-400">#{index + 1}</span>
+                                </div>
+                                <p className="text-xs text-slate-500 truncate">{sos.address || 'Address unavailable'}</p>
+                                <p className="text-xs font-semibold text-slate-700 mt-1">{km.toFixed(2)} km away</p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  acceptSOS(sos._id);
+                                  navigate(`/sos/${sos._id}`);
+                                }}
+                                className="shrink-0 text-xs font-semibold px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700 transition-colors"
+                              >
+                                Respond
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Emergency Contacts */}

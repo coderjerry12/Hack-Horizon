@@ -1,7 +1,7 @@
 {
-  "name": "nearhelp-backend",
+  "name": "RakshaSetu-backend",
   "version": "1.0.0",
-  "description": "NearHelp - Community Emergency Response Platform",
+  "description": "RakshaSetu - Community Emergency Response Platform",
   "main": "index.js",
   "type": "module",
   "scripts": {

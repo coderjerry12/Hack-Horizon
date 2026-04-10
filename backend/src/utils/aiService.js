@@ -76,12 +76,12 @@ export async function generateDebriefPrompt(crisisType, durationSeconds, respond
   const prompt = `A ${crisisType} emergency resolved after ${minutes} minutes with ${responderCount || 0} responders. Write a 3-4 sentence debrief: acknowledge resolution, suggest professional follow-up, encourage rating responders, thank user. Return only the text.`;
   const raw = await callGemini(prompt);
   if (raw) return raw.trim();
-  return `Your ${crisisType} emergency has been resolved after ${minutes} minutes. Please follow up with professional services if needed. Rate your responders to help the community. Thank you for using NearHelp.`;
+  return `Your ${crisisType} emergency has been resolved after ${minutes} minutes. Please follow up with professional services if needed. Rate your responders to help the community. Thank you for using RakshaSetu.`;
 }
 
 export async function askCrisisAssistant(crisisType, question, conversationHistory = []) {
   const historyText = conversationHistory.slice(-6).map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
-  const prompt = `You are NearHelp AI, an emergency crisis assistant for India. User is in a ${crisisType} emergency.
+  const prompt = `You are RakshaSetu AI, an emergency crisis assistant for India. User is in a ${crisisType} emergency.
 Previous conversation:\n${historyText || '(none)'}
 User: ${question}
 Provide concise, actionable safety advice under 150 words. Mention Indian emergency numbers if relevant (100,101,102,108,112).`;

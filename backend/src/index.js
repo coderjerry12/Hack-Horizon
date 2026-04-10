@@ -18,7 +18,7 @@ const startServer = async () => {
     await connectDB();
     initializeSocket(httpServer);
     httpServer.listen(PORT, () => {
-      console.log(`NearHelp server running on http://localhost:${PORT}`);
+      console.log(`RakshaSetu server running on http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

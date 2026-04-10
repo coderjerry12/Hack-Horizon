@@ -64,7 +64,7 @@ function Register() {
         >
           <div className="text-center lg:text-left">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900">Create Account</h2>
-            <p className="mt-2 text-gray-500">Join the NearHelp community</p>
+            <p className="mt-2 text-gray-500">Join the RakshaSetu community</p>
           </div>
 
           <form className="space-y-5" onSubmit={handleSubmit}>

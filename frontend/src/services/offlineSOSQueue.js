@@ -1,6 +1,6 @@
 import { sosAPI } from './api';
 
-const QUEUE_KEY = 'nearhelp_offline_sos_queue';
+const QUEUE_KEY = 'RakshaSetu_offline_sos_queue';
 
 export const isOnline = () => navigator.onLine;
 export const getQueue = () => { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; } };
@@ -39,7 +39,7 @@ const CRISIS_LABELS = { medical: 'Medical Emergency', fire: 'Fire Outbreak', cri
 
 export const buildSOSSmsBody = ({ crisisType, latitude, longitude, userName, userPhone }) => {
   const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
-  return [`EMERGENCY SOS - NearHelp`, ``, `${userName || 'A user'} (${userPhone || 'No phone'}) needs immediate help.`, ``, `Type: ${CRISIS_LABELS[crisisType] || crisisType}`, `Location: ${mapsLink}`, ``, `Please respond or call back urgently.`].join('\n');
+  return [`EMERGENCY SOS - RakshaSetu`, ``, `${userName || 'A user'} (${userPhone || 'No phone'}) needs immediate help.`, ``, `Type: ${CRISIS_LABELS[crisisType] || crisisType}`, `Location: ${mapsLink}`, ``, `Please respond or call back urgently.`].join('\n');
 };
 
 export const triggerSMSFallback = ({ crisisType, latitude, longitude, userName, userPhone, guardianPhones = [] }) => {

@@ -43,7 +43,7 @@ app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/routing', routingRoutes);
 app.use('/api/ambulances', ambulanceRoutes);
 
-app.get('/health', (req, res) => res.json({ status: 'ok', message: 'NearHelp API is running' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', message: 'RakshaSetu API is running' }));
 
 app.use((err, req, res, _next) => {
   const statusCode = err.statusCode || 500;
