@@ -15,10 +15,7 @@ last_ai_call = 0
 COOLDOWN = 60  # seconds between AI calls
 
 EMERGENCY_KEYWORDS = [
-    "fallen:", "unresponsive:", "severe risk:", "potential danger:",
-    "motionless:", "disoriented:", "restricted movement:", "potential obstruction:",
-    "labored breathing:", "seizure-like activity:", "visible bleeding:",
-    "hazard nearby:", "environmental risk:", "sudden collapse:"
+    "emergency_detected", "emergency detected", "fallen", "unresponsive", "critical"
 ]
 
 def analyze_frames():
@@ -26,6 +23,7 @@ def analyze_frames():
 
     # Always start fresh — frontend sends 3 frames per request
     frame_buffer = []
+    last_ai_call = 0 # reset to bypass cooldown for testing
 
     print(f"\n[ANALYZE] POST /api/analyze hit")
 

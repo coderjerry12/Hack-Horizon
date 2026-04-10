@@ -84,5 +84,5 @@ docker-compose.override.yml
 *.seed
 *.pid.lock
 
-.venv
+venv
 __pycache__/

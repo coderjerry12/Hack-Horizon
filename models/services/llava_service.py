@@ -3,17 +3,16 @@ import cv2
 import requests
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llava:7b"
+OLLAMA_MODEL = "llava:latest"
 
 PROMPT = """You are a Critical Care AI Safety Monitoring Assistant.
-Analyze this image of a person and respond ONLY in this format:
-Intensity: <0-100>: <flag>: <explanation>
+Perform a comprehensive safety and medical observation of this image. Output a proper full analysis report detailing the subject's posture, environment hazards, and any signs of distress. 
+Structure your report clearly with:
+- Visual Observations
+- Risk & Safety Assessment
+- Recommended Immediate Actions
 
-Flags: fallen, unresponsive, severe risk, potential danger, motionless, disoriented,
-restricted movement, potential obstruction, labored breathing, seizure-like activity,
-visible bleeding, hazard nearby, environmental risk, sudden collapse, no assistance
-
-Pick only the most critical flag."""
+If they are in danger or it's an emergency, ensure you include the EXACT word "EMERGENCY_DETECTED" in your response."""
 
 def analyze(images):
     print(f"[LLAVA] Sending image to Ollama at {OLLAMA_URL} using model {OLLAMA_MODEL}...")
@@ -31,9 +30,17 @@ def analyze(images):
                 "images": [img_b64],
                 "stream": False
             },
-            timeout=60
+            timeout=120
         )
-        result = response.json().get("response", "Analysis error: no response")
+        
+        data = response.json()
+        
+        if "error" in data:
+            err_msg = data["error"]
+            print(f"[LLAVA] Ollama returned error: {err_msg}")
+            return f"Analysis error: {err_msg}"
+            
+        result = data.get("response", "Analysis error: no response")
         print(f"[LLAVA] Response received: {result[:80]}...")
         return result
     except Exception as e:

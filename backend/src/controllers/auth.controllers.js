@@ -37,7 +37,7 @@ const registerUser = asyncHandler(async (req, res) => {
         email,
         password,
         username,
-        isEmailVerified: false
+        isEmailVerified: true
     })
 
     const { unHashedToken, hashedToken, tokenExpiry } = user.generateTemporaryToken()
@@ -89,7 +89,7 @@ const login = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid credentials", [])
     }
 
-    if (!user.isEmailVerified) {
+    if (false && !user.isEmailVerified) {
         throw new ApiError(400, "Please verify your email first", [])
     }
 
@@ -334,4 +334,32 @@ const changeCurrentPassword = asyncHandler(async(req,res)=>{
         )
 })
 
-export { registerUser, login ,logoutUser , getCurrentUser,verifyEmail,resendEmailVerification,refreshAccessToken,forgotPasswordRequest,resetForgotPassword,changeCurrentPassword}
+const setupAccount = asyncHandler(async (req, res) => {
+    const { bloodGroup, height, weight, emergencyContactName, emergencyContactPhone, medicalConditions } = req.body;
+
+    if (!(req.user && req.user._id)) {
+        throw new ApiError(401, "Unauthorized request");
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (user === null) {
+        throw new ApiError(404, "User not found");
+    }
+
+    user.bloodGroup = bloodGroup;
+    user.height = height;
+    user.weight = weight;
+    user.emergencyContactName = emergencyContactName;
+    user.emergencyContactPhone = emergencyContactPhone;
+    user.medicalConditions = medicalConditions;
+    user.isSetupComplete = true;
+
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json(
+        new ApiResponse(200, user, "Account setup completed successfully")
+    );
+});
+
+export { setupAccount,  registerUser, login ,logoutUser , getCurrentUser,verifyEmail,resendEmailVerification,refreshAccessToken,forgotPasswordRequest,resetForgotPassword,changeCurrentPassword}

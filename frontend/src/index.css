@@ -1,1 +1,15 @@
-/* @import "tailwindcss"; */
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #050505;
+  --color-secondary: #fdfbf7;
+  --font-sans: "Geist", "Satoshi", "Clash Display", "Outfit", sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: #f9fafb;
+    color: #050505;
+    font-family: "Geist", "Satoshi", sans-serif;
+  }
+}

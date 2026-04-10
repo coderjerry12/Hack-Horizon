@@ -28,6 +28,34 @@ const userSchema = new Schema({
         unique:true,
         trim:true
     },
+    bloodGroup: {
+        type: String,
+        trim: true
+    },
+    medicalConditions: {
+        type: String,
+        trim: true
+    },
+    emergencyContactName: {
+        type: String,
+        trim: true
+    },
+    emergencyContactPhone: {
+        type: String,
+        trim: true
+    },
+    height: {
+        type: String,
+        trim: true
+    },
+    weight: {
+        type: String,
+        trim: true
+    },
+    isSetupComplete: {
+        type: Boolean,
+        default: false
+    },
     fullName:{
         type:String,
         trim:true
