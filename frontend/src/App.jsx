@@ -5,6 +5,7 @@ import SetupAccount from "./pages/SetupAccount";
 import Dashboard from "./pages/Dashboard";
 import History from "./pages/History";
 import BystanderSOS from "./pages/BystanderSOS";
+import AdminPanel from "./pages/AdminPanel";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/history" element={<History />} />
         <Route path="/report" element={<BystanderSOS />} />
+        <Route path="/admin" element={<AdminPanel />} />
       </Routes>
     </BrowserRouter>
   );

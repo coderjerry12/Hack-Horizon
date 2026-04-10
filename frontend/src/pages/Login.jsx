@@ -29,7 +29,13 @@ export default function Login() {
           navigate("/login");
           setIsLogin(true);
         } else {
-          if (!data.data.user.isSetupComplete) {
+          // Store user info for role-based routing
+          const user = data.data.user;
+          localStorage.setItem("userRole", user.role || "user");
+
+          if (user.role === "admin") {
+            navigate("/admin");
+          } else if (!user.isSetupComplete) {
             navigate("/setup-account");
           } else {
             navigate("/dashboard");
