@@ -241,7 +241,7 @@ function Dashboard() {
         crisisType: 'other',
         longitude: location.longitude,
         latitude: location.latitude,
-        broadcastRadius: 1500,
+        broadcastRadius: 1000,
         isAnonymous: false,
         address: 'Auto-detected sudden phone motion event'
       });
@@ -253,9 +253,14 @@ function Dashboard() {
         navigate(`/sos/${sosId}`);
       } else {
         setPopup({ type: 'error', message: 'Auto SOS failed. Please try manual SOS.' });
+        setAutoSosModal(null);
+        setShowCrisisSelector(true);
       }
-    } catch {
-      setPopup({ type: 'error', message: 'Auto SOS request failed. Please try manual SOS.' });
+    } catch (error) {
+      const reason = error?.response?.data?.message || 'Auto SOS request failed. Please try manual SOS.';
+      setPopup({ type: 'error', message: reason });
+      setAutoSosModal(null);
+      setShowCrisisSelector(true);
     } finally {
       setAutoSosSending(false);
     }
