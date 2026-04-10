@@ -21,9 +21,11 @@ app.use((req, _res, next) => {
 // Routes
 import healthCheckRouter from "./routes/healthcheck.routes.js";
 import authRouter from "./routes/auth.routes.js";
+import hospitalRouter from "./routes/hospital.routes.js";
 
 app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/hospitals", hospitalRouter);
 
 // Global error handler
 app.use((err, req, res, _next) => {
