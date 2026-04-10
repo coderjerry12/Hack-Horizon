@@ -25,6 +25,7 @@ import hospitalRouter from "./routes/hospital.routes.js";
 import sosRouter from "./routes/sos.routes.js";
 import historyRouter from "./routes/history.routes.js";
 import publicSosRouter from "./routes/publicSos.routes.js";
+import adminRouter from "./routes/admin.routes.js";
 
 app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/auth", authRouter);
@@ -32,6 +33,7 @@ app.use("/api/v1/hospitals", hospitalRouter);
 app.use("/api/v1/sos", sosRouter);
 app.use("/api/v1/history", historyRouter);
 app.use("/api/v1/public-sos", publicSosRouter);
+app.use("/api/v1/admin", adminRouter);
 
 // Global error handler
 app.use((err, req, res, _next) => {
