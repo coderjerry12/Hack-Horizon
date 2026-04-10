@@ -3,7 +3,7 @@ import cv2
 import requests
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llava:latest"
+OLLAMA_MODEL = "llava:7b"
 
 PROMPT = """You are a Critical Care AI Safety Monitoring Assistant.
 Perform a comprehensive safety and medical observation of this image. Output a proper full analysis report detailing the subject's posture, environment hazards, and any signs of distress. 
