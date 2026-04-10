@@ -44,6 +44,10 @@ const userSchema = new Schema({
         type: String,
         trim: true
     },
+    emergencyContactEmail: {
+        type: String,
+        trim: true
+    },
     height: {
         type: String,
         trim: true

@@ -6,7 +6,6 @@ from flask import request, jsonify
 from services.yolo_service import detect_person
 from services.gemini_service import analyze as gemini_analyze
 from services.llava_service import analyze as llava_analyze
-from services.email_service import send_emergency_email, EMAIL_TO
 
 # In-memory frame buffer and cooldown tracker
 # Each request sends exactly 3 frames — buffer holds current batch only
@@ -26,12 +25,6 @@ def analyze_frames():
     last_ai_call = 0 # reset to bypass cooldown for testing
 
     print(f"\n[ANALYZE] POST /api/analyze hit")
-
-    email_config = request.form.get("email_config", "{}")
-    try:
-        email_config = json.loads(email_config)
-    except json.JSONDecodeError:
-        email_config = {}
 
     model_provider = request.form.get("model_provider", "gemini")
     print(f"[ANALYZE] Model provider: {model_provider}")
@@ -83,21 +76,8 @@ def analyze_frames():
         is_emergency = any(kw in analysis.lower() for kw in EMERGENCY_KEYWORDS)
         print(f"[ANALYZE] Result — Emergency: {is_emergency} | {analysis[:80]}...")
 
-        if is_emergency:
-            recipient = email_config.get("emergencyResponseEmail") or EMAIL_TO
-            send_emergency_email(
-                recipient_email=recipient,
-                emergency_data={
-                    "name": email_config.get("name", "Unknown"),
-                    "emergencyMessage": analysis,
-                    "phone": email_config.get("phone", "N/A"),
-                    "emergencyPhone": email_config.get("emergency_phone", "N/A"),
-                    "address": email_config.get("address", "N/A"),
-                    "latitude": email_config.get("latitude", "N/A"),
-                    "longitude": email_config.get("longitude", "N/A"),
-                    "mapsLink": email_config.get("maps_link", "#")
-                }
-            )
+        # Note: Email alerts are handled by the Node.js backend (Mailtrap)
+        # This endpoint only returns the AI analysis result
 
         return jsonify({"message": analysis, "emergency": is_emergency})
 
@@ -105,3 +85,4 @@ def analyze_frames():
         print(f"[ANALYZE] Error during analysis: {e}")
         frame_buffer.clear()
         return jsonify({"message": "Analysis failed", "emergency": False})
+

@@ -11,6 +11,7 @@ export default function SetupAccount() {
     weight: "",
     emergencyContactName: "",
     emergencyContactPhone: "",
+    emergencyContactEmail: "",
     medicalConditions: ""
   });
   const [loading, setLoading] = useState(false);
@@ -125,6 +126,17 @@ export default function SetupAccount() {
                 placeholder="+1 234 567 890"
                 className="px-4 py-3 rounded-xl bg-white border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5 md:col-span-2">
+              <label className="text-[13px] font-medium text-zinc-700">Emergency Contact Email</label>
+              <input 
+                type="email" value={formData.emergencyContactEmail}
+                onChange={(e) => setFormData({...formData, emergencyContactEmail: e.target.value})}
+                placeholder="emergency@example.com"
+                className="px-4 py-3 rounded-xl bg-white border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
+              />
+              <p className="text-[11px] text-zinc-400">SOS alerts will be sent to this email address</p>
             </div>
 
             <button 

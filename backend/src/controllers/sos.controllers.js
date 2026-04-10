@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { findBestHospitalForSOS } from "../services/sos.service.js";
 import { sendEmail, sosEmergencyAlertMailgenContent } from "../utils/mail.js";
 import User from "../models/user.models.js";
+import SosEvent from "../models/sosEvent.models.js";
 
 /**
  * SOS Emergency Handler
@@ -65,9 +66,11 @@ const triggerSOS = asyncHandler(async (req, res) => {
         userId: user?.username || "Anonymous",
     };
 
-    // Send emergency alert email. For testing, prefer SOS_TEST_EMAIL if set.
+    // Send emergency alert email. Priority: user's emergency contact → user's email → env fallback
     const recipientEmail =
-        process.env.SOS_TEST_EMAIL || process.env.MAILTRAP_SMTP_USER || user?.email;
+        user?.emergencyContactEmail ||
+        user?.email ||
+        process.env.SOS_TEST_EMAIL;
 
     if (recipientEmail) {
         try {
@@ -130,6 +133,22 @@ const triggerSOS = asyncHandler(async (req, res) => {
         },
         emergencyContactNotified: !!recipientEmail,
     };
+
+    // Persist SOS event to database
+    try {
+        await SosEvent.create({
+            userId: user?._id,
+            location: { lat: latitude, lng: longitude },
+            hospital: sosResponse.hospital,
+            routing: sosResponse.routing,
+            status: "DISPATCHED",
+            emergencyContactNotified: sosResponse.emergencyContactNotified,
+            source: req.body.source || "user",
+        });
+        console.log("[SOS Controller] ✓ SOS event saved to database");
+    } catch (dbError) {
+        console.error("[SOS Controller] Failed to save SOS event:", dbError.message);
+    }
 
     return res.status(200).json(
         new ApiResponse(

@@ -335,7 +335,7 @@ const changeCurrentPassword = asyncHandler(async(req,res)=>{
 })
 
 const setupAccount = asyncHandler(async (req, res) => {
-    const { bloodGroup, height, weight, emergencyContactName, emergencyContactPhone, medicalConditions } = req.body;
+    const { bloodGroup, height, weight, emergencyContactName, emergencyContactPhone, emergencyContactEmail, medicalConditions } = req.body;
 
     if (!(req.user && req.user._id)) {
         throw new ApiError(401, "Unauthorized request");
@@ -352,6 +352,7 @@ const setupAccount = asyncHandler(async (req, res) => {
     user.weight = weight;
     user.emergencyContactName = emergencyContactName;
     user.emergencyContactPhone = emergencyContactPhone;
+    user.emergencyContactEmail = emergencyContactEmail;
     user.medicalConditions = medicalConditions;
     user.isSetupComplete = true;
 
