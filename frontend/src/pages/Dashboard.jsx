@@ -13,10 +13,11 @@ import PageLoader from '../components/PageLoader';
 import ResourceMap from '../components/ResourceMap';
 import HospitalFinder from '../components/HospitalFinder';
 import {
-  LogOut, History, Shield, MapPin, Bell, AlertCircle, ChevronRight,
-  User, UserPlus, X, HeartPulse, ShieldCheck, Camera, Building2,
-  Navigation, Clock, Activity, TrendingUp, Zap
-} from 'lucide-react';
+  SignOut as LogOut, ClockCounterClockwise as History, Shield, MapPin, Bell, WarningCircle as AlertCircle, CaretRight as ChevronRight,
+  User, UserPlus, X, Heartbeat as HeartPulse, ShieldCheck, Camera, Buildings as Building2,
+  NavigationArrow as Navigation, Clock, Pulse as Activity, TrendUp as TrendingUp, Lightning as Zap
+} from '@phosphor-icons/react';
+import { Ambulance, FireTruck, PoliceCar, Lifebuoy, Check } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'leaflet/dist/leaflet.css';
 
@@ -299,22 +300,22 @@ function Dashboard() {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <a href="tel:108" className="flex flex-col items-center gap-2 p-4 rounded-xl bg-red-50 hover:bg-red-100 border border-red-100 transition-colors">
-                      <div className="text-2xl">🚑</div>
+                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center"><Ambulance size={20} weight="duotone" className="text-red-600" /></div>
                       <span className="text-xs font-semibold text-slate-900">Ambulance</span>
                       <span className="text-lg font-bold text-red-600">108</span>
                     </a>
                     <a href="tel:101" className="flex flex-col items-center gap-2 p-4 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-100 transition-colors">
-                      <div className="text-2xl">🚒</div>
+                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center"><FireTruck size={20} weight="duotone" className="text-orange-600" /></div>
                       <span className="text-xs font-semibold text-slate-900">Fire</span>
                       <span className="text-lg font-bold text-orange-600">101</span>
                     </a>
                     <a href="tel:100" className="flex flex-col items-center gap-2 p-4 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-colors">
-                      <div className="text-2xl">🚔</div>
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center"><PoliceCar size={20} weight="duotone" className="text-blue-600" /></div>
                       <span className="text-xs font-semibold text-slate-900">Police</span>
                       <span className="text-lg font-bold text-blue-600">100</span>
                     </a>
                     <a href="tel:112" className="flex flex-col items-center gap-2 p-4 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-100 transition-colors">
-                      <div className="text-2xl">🆘</div>
+                      <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center"><Lifebuoy size={20} weight="duotone" className="text-purple-600" /></div>
                       <span className="text-xs font-semibold text-slate-900">All Services</span>
                       <span className="text-lg font-bold text-purple-600">112</span>
                     </a>
@@ -412,7 +413,7 @@ function Dashboard() {
                       const selected = selectedSkills.includes(skill.type);
                       return (
                         <button key={skill.type} onClick={() => setSelectedSkills(prev => prev.includes(skill.type) ? prev.filter(s => s !== skill.type) : [...prev, skill.type])} className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${selected ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
-                          {selected && <span className="mr-1.5">✓</span>}{skill.label}
+                          {selected && <Check size={12} weight="bold" className="mr-1.5 inline" />} {skill.label}
                         </button>
                       );
                     })}

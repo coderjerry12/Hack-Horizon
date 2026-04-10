@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { GearSix, MapPin, FloppyDiskBack, CheckCircle, ClipboardText } from '@phosphor-icons/react';
 import '../styles/Config.css';
 
 export default function Config({ initialConfig, onSave }) {
@@ -54,7 +55,7 @@ export default function Config({ initialConfig, onSave }) {
   return (
     <div className="config">
       <div className="config-container">
-        <h2>⚙️ Configuration Settings</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><GearSix size={24} weight="duotone" />Configuration Settings</h2>
         
         <form onSubmit={handleSubmit} className="config-form">
           <fieldset className="form-section">
@@ -145,7 +146,7 @@ export default function Config({ initialConfig, onSave }) {
                 className="location-btn"
                 onClick={handleGetLocation}
               >
-                📍 Get Current Location
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}><MapPin size={16} weight="fill" />Get Current Location</span>
               </button>
             </div>
           </fieldset>
@@ -187,14 +188,14 @@ export default function Config({ initialConfig, onSave }) {
 
           <div className="form-actions">
             <button type="submit" className="save-btn">
-              💾 Save Configuration
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}><FloppyDiskBack size={16} weight="duotone" />Save Configuration</span>
             </button>
-            {saved && <div className="success-msg">✅ Settings saved successfully!</div>}
+            {saved && <div className="success-msg" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}><CheckCircle size={16} weight="fill" />Settings saved successfully!</div>}
           </div>
         </form>
 
         <div className="config-info">
-          <h3>📋 Note:</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><ClipboardText size={18} weight="duotone" />Note:</h3>
           <ul>
             <li>All settings are stored locally in your browser</li>
             <li>Email alerts will be sent to the configured address when emergencies are detected</li>

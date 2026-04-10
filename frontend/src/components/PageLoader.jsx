@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { Bell } from '@phosphor-icons/react';
 
 export default function PageLoader({ text = 'Loading...' }) {
   return (

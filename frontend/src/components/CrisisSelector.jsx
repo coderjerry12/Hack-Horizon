@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { sosAPI } from '../services/api';
 import { motion } from 'framer-motion';
-import { HeartPulse, Flame, AlertTriangle, ShieldAlert, Zap, X, ChevronRight, Radio, EyeOff, WifiOff, MessageSquare } from 'lucide-react';
+import { Heartbeat as HeartPulse, FireSimple as Flame, WarningCircle as AlertTriangle, Shield as ShieldAlert, Lightning as Zap, X, CaretRight as ChevronRight, RadioButton as Radio, EyeSlash as EyeOff, WifiX as WifiOff, ChatCircleText as MessageSquare } from '@phosphor-icons/react';
 import { useState, useEffect } from 'react';
 import { isOnline, enqueueSOS, triggerSMSFallback } from '../services/offlineSOSQueue';
 

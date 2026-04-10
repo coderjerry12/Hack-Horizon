@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { hospitalAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Phone, Globe, NavigationIcon, RefreshCw, Plus, X, ChevronDown, ChevronUp, Siren, Loader2 } from 'lucide-react';
+import { Buildings as Building2, Phone, GlobeHemisphereWest as Globe, NavigationArrow as NavigationIcon, ArrowsClockwise as RefreshCw, Plus, X, CaretDown as ChevronDown, CaretUp as ChevronUp, Siren, SpinnerGap as Loader2 } from '@phosphor-icons/react';
 
 function HospitalFinder({ location }) {
   const { user } = useAuthStore();

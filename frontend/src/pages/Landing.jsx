@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Bell, Shield, Zap, MapPin, Users, ChevronRight,
-  AlertTriangle, Heart, Navigation, Camera, Building2, ArrowRight,
-  Phone, Clock, Activity
-} from 'lucide-react';
+  Bell, Shield, Lightning as Zap, MapPin, UsersThree as Users, CaretRight as ChevronRight,
+  WarningCircle as AlertTriangle, Heart, NavigationArrow as Navigation, Camera, Buildings as Building2, ArrowRight,
+  Phone, Clock, Pulse as Activity
+} from '@phosphor-icons/react';
 
 const FEATURES = [
   { icon: Bell, title: 'One-Tap SOS', desc: 'Instantly alert nearby responders, guardians, and emergency services with a single tap.', color: 'bg-red-50 text-red-600' },

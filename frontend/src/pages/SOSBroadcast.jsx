@@ -11,21 +11,48 @@ import AICrisisChat from '../components/AICrisisChat';
 import RatingModal from '../components/RatingModal';
 import MapGestureGuard from '../components/MapGestureGuard';
 import {
-  Navigation, Send, AlertTriangle, ShieldCheck, MapPin, Minimize2, Maximize2,
-  Flag, ArrowLeft, Bot, Award, Building2, Clock, Phone, ChevronRight, Loader2
-} from 'lucide-react';
+  NavigationArrow as Navigation, PaperPlaneRight as Send, WarningCircle as AlertTriangle, ShieldCheck, MapPin, CornersIn as Minimize2, CornersOut as Maximize2,
+  Flag, ArrowLeft, Robot as Bot, Medal as Award, Buildings as Building2, Clock, Phone, CaretRight as ChevronRight, SpinnerGap as Loader2
+} from '@phosphor-icons/react';
+import {
+  Heart,
+  FireExtinguisher,
+  FirstAidKit,
+  PoliceCar,
+  FireTruck,
+  MapPin as PhosphorMapPin,
+  CheckCircle,
+  Star
+} from '@phosphor-icons/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'leaflet/dist/leaflet.css';
 
-const RESOURCE_ICONS = { aed: '💛', fire_extinguisher: '🧯', hospital: '🏥', police_station: '🚔', fire_station: '🚒' };
+const RESOURCE_ICONS = {
+  aed: { icon: Heart, color: '#ca8a04' },
+  fire_extinguisher: { icon: FireExtinguisher, color: '#dc2626' },
+  hospital: { icon: FirstAidKit, color: '#2563eb' },
+  police_station: { icon: PoliceCar, color: '#1d4ed8' },
+  fire_station: { icon: FireTruck, color: '#ea580c' }
+};
 const resourceIconCache = {};
-const getResourceIcon = emoji => {
-  if (!resourceIconCache[emoji]) resourceIconCache[emoji] = new L.DivIcon({ className: 'resource-icon-wrapper', html: `<div style="font-size:18px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))">${emoji}</div>`, iconSize: [22, 22], iconAnchor: [11, 11] });
-  return resourceIconCache[emoji];
+const getResourceIcon = (resourceType) => {
+  if (!resourceIconCache[resourceType]) {
+    const config = RESOURCE_ICONS[resourceType] || { icon: PhosphorMapPin, color: '#475569' };
+    const Icon = config.icon;
+    const iconMarkup = renderToStaticMarkup(<Icon size={14} weight="fill" color={config.color} />);
+    resourceIconCache[resourceType] = new L.DivIcon({
+      className: 'resource-icon-wrapper',
+      html: `<div style="width:24px;height:24px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(15,23,42,.22);border:1px solid #e2e8f0">${iconMarkup}</div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+  }
+  return resourceIconCache[resourceType];
 };
 const sosPulseIcon = new L.DivIcon({ className: 'sos-pulse-wrapper', html: '<div class="sos-pulse-dot"></div>', iconSize: [22, 22], iconAnchor: [11, 11] });
 const responderIcon = new L.DivIcon({ className: 'user-map-wrapper', html: '<div style="width:16px;height:16px;border-radius:50%;background:#16a34a;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
-const hospitalIcon = new L.DivIcon({ className: '', html: '<div style="width:28px;height:28px;border-radius:8px;background:#2563eb;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(37,99,235,.4)">🏥</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+const hospitalIcon = new L.DivIcon({ className: '', html: `<div style="width:28px;height:28px;border-radius:8px;background:#2563eb;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(37,99,235,.4)">${renderToStaticMarkup(<FirstAidKit size={14} weight="fill" color="#ffffff" />)}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
 
 export default function SOSBroadcast() {
   const { sosId } = useParams();
@@ -165,7 +192,7 @@ export default function SOSBroadcast() {
           ))}
           {nearbyResources.map(resource => {
             const [rLng, rLat] = resource.location.coordinates;
-            return <Marker key={resource._id} position={[rLat, rLng]} icon={getResourceIcon(RESOURCE_ICONS[resource.type] || '📍')}><Popup><div className="text-xs"><div className="font-bold">{resource.name}</div><div className="capitalize text-slate-500">{resource.type.replaceAll('_', ' ')}</div></div></Popup></Marker>;
+            return <Marker key={resource._id} position={[rLat, rLng]} icon={getResourceIcon(resource.type)}><Popup><div className="text-xs"><div className="font-bold">{resource.name}</div><div className="capitalize text-slate-500">{resource.type.replaceAll('_', ' ')}</div></div></Popup></Marker>;
           })}
           {nearestHospitals.slice(0, 5).map((h, i) => {
             const hLat = h.location?.coordinates?.[1];
@@ -191,7 +218,7 @@ export default function SOSBroadcast() {
             </div>
             <p className="text-red-200 text-xs mb-3 uppercase tracking-wide font-semibold">{sos.crisisType} Alert</p>
             {isBroadcaster ? (
-              <button onClick={handleResolve} className="w-full bg-white text-red-600 py-2 rounded-xl font-bold text-sm hover:bg-red-50 transition-colors">✓ Mark Safe</button>
+              <button onClick={handleResolve} className="w-full bg-white text-red-600 py-2 rounded-xl font-bold text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5"><CheckCircle size={15} weight="fill" />Mark Safe</button>
             ) : (
               <button onClick={async () => { if (!window.confirm('Flag as false alert?')) return; try { await sosAPI.flag(sosId); setPopup({ type: 'info', message: 'Alert flagged.' }); } catch { setPopup({ type: 'error', message: 'Failed to flag' }); } }} className="w-full bg-red-800/60 text-white py-2 rounded-xl font-bold text-sm hover:bg-red-800 transition-colors flex items-center justify-center gap-1.5"><Flag size={13} /> Report False</button>
             )}
@@ -230,7 +257,7 @@ export default function SOSBroadcast() {
                     <button key={r.user._id} onClick={() => setSelectedResponderId(prev => prev === r.user._id ? null : r.user._id)} className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${selected ? 'bg-slate-900 text-white border-slate-900' : hasSkills ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                       {hasSkills ? <Award size={11} className={selected ? 'text-yellow-300' : 'text-amber-500'} /> : <div className="w-1.5 h-1.5 rounded-full bg-green-400" />}
                       {r.user.name.split(' ')[0]}
-                      {r.user?.trustScore != null && <span className={`text-[9px] ${selected ? 'text-slate-300' : 'text-slate-400'}`}>★{(r.user.trustScore * 5).toFixed(1)}</span>}
+                      {r.user?.trustScore != null && <span className={`text-[9px] ${selected ? 'text-slate-300' : 'text-slate-400'} inline-flex items-center gap-0.5`}><Star size={9} weight="fill" />{(r.user.trustScore * 5).toFixed(1)}</span>}
                     </button>
                   );
                 })}

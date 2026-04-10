@@ -3,7 +3,7 @@ import { adminAPI, sosAPI, authAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Users, AlertTriangle, Activity, MapPin, Search, Filter, CheckCircle, Menu, Bell, LogOut, LayoutDashboard, Shield, Clock, Flag, Map as MapIcon } from 'lucide-react';
+import { UsersThree as Users, WarningCircle as AlertTriangle, Pulse as Activity, MapPin, MagnifyingGlass as Search, Funnel as Filter, CheckCircle, List as Menu, Bell, SignOut as LogOut, SquaresFour as LayoutDashboard, Shield, Clock, Flag, MapTrifold as MapIcon } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageLoader from '../components/PageLoader';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';

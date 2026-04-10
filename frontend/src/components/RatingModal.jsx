@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { sosAPI } from '../services/api';
-import { Star, Check } from 'lucide-react';
+import { Star, Check } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 
 function RatingModal({ sosId, responders, debrief, onClose }) {

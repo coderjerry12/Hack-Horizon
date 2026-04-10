@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, AlertTriangle, Info, X, AlertOctagon } from 'lucide-react';
+import { CheckCircle, WarningCircle as AlertTriangle, Info, X, WarningCircle as AlertOctagon } from '@phosphor-icons/react';
 
 const CONFIG = {
   success: { bg: 'bg-emerald-600', icon: CheckCircle, border: 'border-emerald-500' },

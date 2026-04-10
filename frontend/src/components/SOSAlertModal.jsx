@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, MapPin, BellRing, Heart } from 'lucide-react';
+import { Shield as ShieldAlert, MapPin, BellRinging as BellRing, Heart } from '@phosphor-icons/react';
 import { acceptSOS } from '../services/socket';
 
 function SOSAlertModal({ alert, onClose, onAccepted }) {

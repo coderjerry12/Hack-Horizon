@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { resourceAPI } from '../services/api';
 import MapGestureGuard from './MapGestureGuard';
-import { Activity, Flame, Building2, Shield, Truck, MapPin } from 'lucide-react';
+import { Pulse as Activity, FireSimple as Flame, Buildings as Building2, Shield, Truck, MapPin } from '@phosphor-icons/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import 'leaflet/dist/leaflet.css';
 

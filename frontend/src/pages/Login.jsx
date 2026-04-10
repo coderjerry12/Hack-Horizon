@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, SpinnerGap as Loader2 } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 
 function Login() {

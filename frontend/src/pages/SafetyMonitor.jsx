@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Camera, Upload, AlertTriangle, CheckCircle, Loader2, Eye, Zap, Shield, Home, History } from 'lucide-react';
+import { ArrowLeft, Camera, Upload, WarningCircle as AlertTriangle, CheckCircle, SpinnerGap as Loader2, Eye, Lightning as Zap, Shield, House as Home, ClockCounterClockwise as History } from '@phosphor-icons/react';
 
 const FLASK_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:5003';
 

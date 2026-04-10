@@ -3,7 +3,8 @@ import { sosAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import PageLoader from '../components/PageLoader';
-import { ArrowLeft, Calendar, Clock, MapPin, CheckCircle2, AlertTriangle, User, Shield, Radio, HeartHandshake, Home, Camera } from 'lucide-react';
+import { ArrowLeft, CalendarBlank as Calendar, Clock, MapPin, CheckCircle as CheckCircle2, WarningCircle as AlertTriangle, User, Shield, RadioButton as Radio, Handshake as HeartHandshake, House as Home, Camera } from '@phosphor-icons/react';
+import { Star } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function History() {
@@ -100,7 +101,17 @@ function History() {
                         <span className="flex items-center gap-2"><CheckCircle2 size={14} />Accepted Request</span>
                         <span className="text-xs opacity-75">{record.myAcceptedAt ? new Date(record.myAcceptedAt).toLocaleTimeString() : ''}</span>
                       </div>
-                      {record.myRating && <div className="text-xs text-yellow-700 bg-yellow-50 px-3 py-2 rounded">You were rated: {'★'.repeat(record.myRating)}{'☆'.repeat(5 - record.myRating)} ({record.myRating}/5)</div>}
+                      {record.myRating && (
+                        <div className="text-xs text-yellow-700 bg-yellow-50 px-3 py-2 rounded flex items-center gap-1.5">
+                          <span>You were rated:</span>
+                          <span className="inline-flex items-center gap-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star key={i} size={12} weight={i < record.myRating ? 'fill' : 'regular'} className={i < record.myRating ? 'text-yellow-600' : 'text-yellow-300'} />
+                            ))}
+                          </span>
+                          <span>({record.myRating}/5)</span>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="flex items-center mt-2 pt-3 border-t border-gray-50 text-xs text-gray-500">

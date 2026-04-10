@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Bot } from 'lucide-react';
+import { Robot as Bot } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 
 function AICrisisChat({ messages }) {
