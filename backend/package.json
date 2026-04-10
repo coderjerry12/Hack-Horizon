@@ -1,18 +1,31 @@
 {
-  "name": "hackhorizon",
+  "name": "prose-and-process-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Backend for Prose & Process — a strategic project management application",
   "main": "index.js",
-  "type":"module",
+  "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js"
+    "dev": "nodemon src/index.js"
   },
-  "author": "",
+  "author": "Awaish",
   "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "prettier": "3.8.1"
+  },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^2.9.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
-    "dotenv": "^17.4.1",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "mongoose": "^9.4.1"
+    "express-validator": "^7.3.1",
+    "jsonwebtoken": "^9.0.3",
+    "mailgen": "^2.0.32",
+    "mongoose": "^9.3.1",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.4"
   }
 }
