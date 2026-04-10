@@ -1,137 +1,132 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { ArrowRight, UserCircle } from "@phosphor-icons/react";
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { authAPI } from '../services/api';
+import { useAuthStore } from '../store/authStore';
+import { ArrowRight, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
-export default function Login() {
-  const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ username: "", email: "", password: "" });
+function Login() {
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
     try {
-      const endpoint = isLogin ? "/api/v1/auth/login" : "/api/v1/auth/register";
-      // We assumevite proxy is not yet set up, so we will use full URL or assume /api
-      const payload = isLogin ? { email: formData.email, username: formData.username, password: formData.password } : formData;
-      const res = await fetch(`http://localhost:8000${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem("accessToken", data.data.accessToken || data.data.user?.accessToken);
-        localStorage.setItem("refreshToken", data.data.refreshToken || data.data.user?.refreshToken);
-        if (!isLogin) {
-          navigate("/login");
-          setIsLogin(true);
-        } else {
-          // Store user info for role-based routing
-          const user = data.data.user;
-          localStorage.setItem("userRole", user.role || "user");
-
-          if (user.role === "admin") {
-            navigate("/admin");
-          } else if (!user.isSetupComplete) {
-            navigate("/setup-account");
-          } else {
-            navigate("/dashboard");
-          }
-        }
-      } else {
-        alert(data.message || "An error occurred");
-      }
-    } catch (error) {
-      console.error(error);
+      const response = await authAPI.login(formData);
+      const { user } = response.data.data;
+      setAuth(user);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#fdfbf7] flex items-center justify-center p-6">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-        className="w-full max-w-[440px] bg-white rounded-[2rem] p-2 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-zinc-200/50"
-      >
-        <div className="bg-zinc-50 rounded-[calc(2rem-0.5rem)] p-8">
-          <div className="flex flex-col items-center gap-4 mb-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-zinc-950 flex items-center justify-center text-white">
-              <UserCircle weight="duotone" className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-zinc-950">
-                {isLogin ? "Welcome back" : "Create an account"}
-              </h2>
-              <p className="text-sm text-zinc-500 mt-1">
-                {isLogin ? "Enter your details to proceed" : "Start your medical profile today"}
-              </p>
-            </div>
+    <div className="flex min-h-screen w-full bg-white">
+      {/* Left Decoration - Desktop Only */}
+      <div className="hidden lg:flex w-1/2 bg-gray-50 relative overflow-hidden items-center justify-center p-12">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(220,38,38,0.08),transparent)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.08),transparent)]"></div>
+
+        <div className="relative z-10 max-w-lg">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="h-10 w-px bg-gray-300 hidden sm:block"></div>
+            <p className="text-3xl text-red-600 h-full flex items-center" style={{ fontFamily: "'Dancing Script', cursive" }}>
+              Every second counts
+            </p>
+          </div>
+          <h1 className="text-5xl font-bold text-gray-900 mb-6 tracking-tight">
+            Raksha Setu —<br /> Community Emergency Response.
+          </h1>
+          <p className="text-lg text-gray-500 leading-relaxed">
+            Join a network of local heroes ready to assist in critical moments.
+            Rapid, reliable, and secure help when you need it most.
+          </p>
+        </div>
+      </div>
+
+      {/* Right Form Side */}
+      <div className="flex-1 flex items-center justify-center p-8 lg:p-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md space-y-8"
+        >
+          <div className="text-center lg:text-left">
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900">Welcome back</h2>
+            <p className="mt-2 text-gray-500">Sign in to Raksha Setu</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {!isLogin && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-medium text-zinc-700">Username</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={formData.username}
-                  onChange={(e) => setFormData({...formData, username: e.target.value})}
-                  className="px-4 py-3 rounded-xl bg-white border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
-                  placeholder="johndoe"
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="bg-red-50 text-red-700 p-4 rounded-xl text-sm font-medium border border-red-100 flex items-center gap-2"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                {error}
+              </motion.div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                <input
+                  className="input-field"
+                  name="email"
+                  placeholder="rahul.kumar@example.com"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
-            )}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-zinc-700">Email</label>
-              <input 
-                type="email" 
-                required 
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="px-4 py-3 rounded-xl bg-white border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
-                placeholder="hello@example.com"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-zinc-700">Password</label>
-              <input 
-                type="password" 
-                required 
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-                className="px-4 py-3 rounded-xl bg-white border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
-                placeholder="••••••••"
-              />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                <input
+                  className="input-field"
+                  name="password"
+                  placeholder="••••••••"
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
+                />
+              </div>
             </div>
 
-            <button 
+            <button
+              className="w-full btn-primary h-12 text-sm uppercase tracking-wider"
+              type="submit"
               disabled={loading}
-              className="mt-4 group relative px-6 py-3.5 rounded-full bg-zinc-950 text-white font-medium text-sm tracking-wide active:scale-[0.98] transition-transform w-full flex items-center justify-center gap-2 overflow-hidden shadow-xl shadow-zinc-950/10 disabled:opacity-50"
             >
-              <span>{loading ? "Processing..." : (isLogin ? "Log In" : "Sign Up")}</span>
-              {!loading && (
-                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center transition-transform group-hover:translate-x-1 group-hover:-translate-y-[1px] absolute right-4">
-                  <ArrowRight weight="bold" className="w-3.5 h-3.5" />
-                </div>
+              {loading ? (
+                <Loader2 className="animate-spin w-5 h-5 text-white" />
+              ) : (
+                <span className="flex items-center gap-2">Sign In <ArrowRight size={16} /></span>
               )}
             </button>
           </form>
 
-          <p className="mt-8 text-center text-[13px] text-zinc-500">
-            {isLogin ? "Don't have an account?" : "Already have an account?"} 
-            <button onClick={() => setIsLogin(!isLogin)} type="button" className="ml-1 text-zinc-950 font-medium hover:underline">
-              {isLogin ? "Sign up" : "Log in"}
-            </button>
+          <p className="text-center text-sm text-gray-500">
+            Don't have an account?{' '}
+            <Link to="/register" className="font-semibold text-red-600 hover:text-red-500 transition-colors">
+              Create one now
+            </Link>
           </p>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }
+
+export default Login;
