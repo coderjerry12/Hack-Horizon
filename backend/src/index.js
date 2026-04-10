@@ -1,23 +1,29 @@
-import dotenv from "dotenv";
-import app from "./app.js"
-import connectDb from "./db/index.js";
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { createServer } from 'http';
+import app from './app.js';
+import { connectDB } from './db/index.js';
+import { initializeSocket } from './socket/index.js';
 
-dotenv.config({
-    path:"./.env"
-});
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '..', '.env') });
 
-const port = process.env.PORT || 3000;
-connectDb()
-.then(()=>{
-    app.listen(port,()=>{
-        console.log(`App is listening on port http://localhost:${port}`)
-    })
-})
-.catch((err)=>{
-    console.error("MongoDB connection error",err)
-    process.exit(1)
-})
+const PORT = process.env.PORT || 5000;
+const httpServer = createServer(app);
 
+const startServer = async () => {
+  try {
+    await connectDB();
+    initializeSocket(httpServer);
+    httpServer.listen(PORT, () => {
+      console.log(`NearHelp server running on http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
 
-
-
+startServer();

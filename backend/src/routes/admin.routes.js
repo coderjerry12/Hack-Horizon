@@ -1,25 +1,16 @@
-import { Router } from "express";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { verifyAdmin } from "../middlewares/admin.middleware.js";
-import {
-    getAdminStats,
-    getAllUsers,
-    getAllSosEvents,
-    getRecentEmergencies,
-    deleteUser,
-    updateUserRole,
-} from "../controllers/admin.controllers.js";
+import express from 'express';
+import { getDashboardStats, getAllSOS, getLocalityAnalytics, getUsersForModeration, suspendUser, unsuspendUser } from '../controllers/admin.controller.js';
+import { authenticate, authorize } from '../middlewares/auth.middleware.js';
+import { USER_ROLES } from '../constant.js';
 
-const router = Router();
+const router = express.Router();
+router.use(authenticate, authorize(USER_ROLES.ADMIN));
 
-// All admin routes require JWT + admin role
-router.use(verifyJWT, verifyAdmin);
-
-router.route("/stats").get(getAdminStats);
-router.route("/users").get(getAllUsers);
-router.route("/users/:id").delete(deleteUser);
-router.route("/users/:id/role").patch(updateUserRole);
-router.route("/sos-events").get(getAllSosEvents);
-router.route("/recent-emergencies").get(getRecentEmergencies);
+router.get('/stats', getDashboardStats);
+router.get('/sos', getAllSOS);
+router.get('/locality-analytics', getLocalityAnalytics);
+router.get('/users', getUsersForModeration);
+router.put('/users/:userId/suspend', suspendUser);
+router.put('/users/:userId/unsuspend', unsuspendUser);
 
 export default router;

@@ -1,50 +1,52 @@
-import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
+import dotenv from 'dotenv';
+dotenv.config();
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import authRoutes from './routes/auth.routes.js';
+import sosRoutes from './routes/sos.routes.js';
+import resourceRoutes from './routes/resource.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import chatbotRoutes from './routes/chatbot.routes.js';
+import hospitalRoutes from './routes/hospital.routes.js';
+import routingRoutes from './routes/routing.routes.js';
 
 const app = express();
 
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:5173', process.env.FRONTEND_URL].filter(Boolean);
+
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || "*",
-    credentials: true
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+    else callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
 }));
-app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Request logger
 app.use((req, _res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-    next();
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
 });
 
-// Routes
-import healthCheckRouter from "./routes/healthcheck.routes.js";
-import authRouter from "./routes/auth.routes.js";
-import hospitalRouter from "./routes/hospital.routes.js";
-import sosRouter from "./routes/sos.routes.js";
-import historyRouter from "./routes/history.routes.js";
-import publicSosRouter from "./routes/publicSos.routes.js";
-import adminRouter from "./routes/admin.routes.js";
+app.use('/api/auth', authRoutes);
+app.use('/api/sos', sosRoutes);
+app.use('/api/resources', resourceRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/ai', chatbotRoutes);
+app.use('/api/hospitals', hospitalRoutes);
+app.use('/api/routing', routingRoutes);
 
-app.use("/api/v1/healthcheck", healthCheckRouter);
-app.use("/api/v1/auth", authRouter);
-app.use("/api/v1/hospitals", hospitalRouter);
-app.use("/api/v1/sos", sosRouter);
-app.use("/api/v1/history", historyRouter);
-app.use("/api/v1/public-sos", publicSosRouter);
-app.use("/api/v1/admin", adminRouter);
+app.get('/health', (req, res) => res.json({ status: 'ok', message: 'NearHelp API is running' }));
 
-// Global error handler
 app.use((err, req, res, _next) => {
-    const statusCode = err.statusCode || 500;
-    console.error(`[ERROR] ${req.method} ${req.originalUrl} → ${statusCode}: ${err.message}`);
-    res.status(statusCode).json({
-        success: false,
-        statusCode,
-        message: err.message || "Internal Server Error",
-        errors: err.errors || []
-    });
+  const statusCode = err.statusCode || 500;
+  console.error(`[ERROR] ${req.method} ${req.originalUrl} → ${statusCode}: ${err.message}`);
+  res.status(statusCode).json({ success: false, message: err.message || 'Internal Server Error', errors: err.errors || [] });
 });
 
 export default app;
