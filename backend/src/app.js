@@ -23,11 +23,15 @@ import healthCheckRouter from "./routes/healthcheck.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import hospitalRouter from "./routes/hospital.routes.js";
 import sosRouter from "./routes/sos.routes.js";
+import historyRouter from "./routes/history.routes.js";
+import publicSosRouter from "./routes/publicSos.routes.js";
 
 app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/hospitals", hospitalRouter);
 app.use("/api/v1/sos", sosRouter);
+app.use("/api/v1/history", historyRouter);
+app.use("/api/v1/public-sos", publicSosRouter);
 
 // Global error handler
 app.use((err, req, res, _next) => {
