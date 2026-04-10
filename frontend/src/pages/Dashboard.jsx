@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useAuthStore } from '../store/authStore';
 import { sosAPI, authAPI, routingAPI } from '../services/api';
-import { initSocket, updateLocation, acceptSOS } from '../services/socket';
+import { initSocket, updateLocation, acceptSOS, broadcastSOS } from '../services/socket';
 import { attachAutoSync, getQueue } from '../services/offlineSOSQueue';
 import CrisisSelector from '../components/CrisisSelector';
 import SOSAlertModal from '../components/SOSAlertModal';
@@ -20,6 +20,10 @@ import {
 import { Ambulance, FireTruck, PoliceCar, Lifebuoy, Check } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'leaflet/dist/leaflet.css';
+
+const AUTO_SOS_COOLDOWN_MS = 45000;
+const MOTION_ACCEL_THRESHOLD = 28;
+const MOTION_ROTATION_THRESHOLD = 420;
 
 function FitBounds({ userLocation, sosLocation }) {
   const map = useMap();
@@ -89,7 +93,12 @@ function Dashboard() {
   const [medicalSaving, setMedicalSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [autoSosEnabled, setAutoSosEnabled] = useState(false);
+  const [autoSosSending, setAutoSosSending] = useState(false);
+  const [sensorSupported, setSensorSupported] = useState(true);
+  const [autoSosModal, setAutoSosModal] = useState(null);
   const navigate = useNavigate();
+  const motionCooldownRef = useRef(0);
 
   const sosPulseIcon = useMemo(() => new L.DivIcon({ className: 'sos-pulse-wrapper', html: '<div class="sos-pulse-dot"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }), []);
   const userIcon = useMemo(() => new L.DivIcon({ className: 'user-map-wrapper', html: '<div class="user-map-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }), []);
@@ -193,6 +202,97 @@ function Dashboard() {
   }, [pendingSOS, location]);
 
   const handleLogout = async () => { try { await authAPI.logout(); } catch {} logout(); navigate('/login'); };
+
+  const triggerAutoSosModal = (reason) => {
+    const now = Date.now();
+    if (now - motionCooldownRef.current < AUTO_SOS_COOLDOWN_MS) return;
+    motionCooldownRef.current = now;
+    setAutoSosModal({ reason, triggeredAt: now });
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 350]);
+  };
+
+  const enableAutoSosMonitoring = async () => {
+    if (typeof window === 'undefined' || typeof window.DeviceMotionEvent === 'undefined') {
+      setSensorSupported(false);
+      setPopup({ type: 'warning', message: 'Motion sensors are not available on this device/browser.' });
+      return;
+    }
+    try {
+      if (typeof window.DeviceMotionEvent.requestPermission === 'function') {
+        const state = await window.DeviceMotionEvent.requestPermission();
+        if (state !== 'granted') {
+          setPopup({ type: 'warning', message: 'Motion permission denied. Auto SOS is off.' });
+          return;
+        }
+      }
+      setAutoSosEnabled(true);
+      setPopup({ type: 'success', message: 'Auto SOS monitoring enabled.' });
+    } catch {
+      setPopup({ type: 'error', message: 'Could not enable motion monitoring.' });
+    }
+  };
+
+  const handleAutoSosCall = async () => {
+    if (!location || autoSosSending) return;
+    setAutoSosSending(true);
+    try {
+      const response = await sosAPI.create({
+        crisisType: 'other',
+        longitude: location.longitude,
+        latitude: location.latitude,
+        broadcastRadius: 1500,
+        isAnonymous: false,
+        address: 'Auto-detected sudden phone motion event'
+      });
+      const sosId = response.data?.data?._id || response.data?.data?.sos?._id;
+      if (sosId) {
+        broadcastSOS(sosId);
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([120, 60, 120]);
+        setAutoSosModal(null);
+        navigate(`/sos/${sosId}`);
+      } else {
+        setPopup({ type: 'error', message: 'Auto SOS failed. Please try manual SOS.' });
+      }
+    } catch {
+      setPopup({ type: 'error', message: 'Auto SOS request failed. Please try manual SOS.' });
+    } finally {
+      setAutoSosSending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!autoSosEnabled) return;
+    if (typeof window === 'undefined' || typeof window.DeviceMotionEvent === 'undefined') return;
+
+    const onMotion = (event) => {
+      const acc = event.accelerationIncludingGravity || event.acceleration;
+      if (!acc) return;
+
+      const ax = Math.abs(acc.x || 0);
+      const ay = Math.abs(acc.y || 0);
+      const az = Math.abs(acc.z || 0);
+      const magnitude = Math.sqrt(ax * ax + ay * ay + az * az);
+
+      const rotation = event.rotationRate
+        ? Math.max(
+            Math.abs(event.rotationRate.alpha || 0),
+            Math.abs(event.rotationRate.beta || 0),
+            Math.abs(event.rotationRate.gamma || 0)
+          )
+        : 0;
+
+      if (magnitude >= MOTION_ACCEL_THRESHOLD || rotation >= MOTION_ROTATION_THRESHOLD) {
+        const reason = magnitude >= MOTION_ACCEL_THRESHOLD
+          ? `High acceleration detected (${magnitude.toFixed(1)} m/s2)`
+          : `High rotation detected (${rotation.toFixed(0)} deg/s)`;
+        triggerAutoSosModal(reason);
+      }
+    };
+
+    window.addEventListener('devicemotion', onMotion);
+    return () => window.removeEventListener('devicemotion', onMotion);
+  }, [autoSosEnabled]);
+
   const handleAddGuardian = async () => {
     if (!guardianEmail.trim()) return;
     setGuardianLoading(true);
@@ -309,6 +409,19 @@ function Dashboard() {
                       <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform"><History size={20} className="text-white" /></div>
                       <span className="text-xs font-semibold text-slate-900">History</span>
                     </button>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Auto SOS Motion Guard</p>
+                      <p className="text-xs text-slate-500">Detects sudden acceleration/rotation and asks before placing SOS.</p>
+                    </div>
+                    {!sensorSupported ? (
+                      <span className="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-200 text-slate-600">Not Supported</span>
+                    ) : autoSosEnabled ? (
+                      <button onClick={() => setAutoSosEnabled(false)} className="text-xs font-semibold px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">Enabled (Tap to Disable)</button>
+                    ) : (
+                      <button onClick={enableAutoSosMonitoring} className="text-xs font-semibold px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700 transition-colors">Enable Auto SOS</button>
+                    )}
                   </div>
                 </div>
 
@@ -597,6 +710,50 @@ function Dashboard() {
 
       {showCrisisSelector && <CrisisSelector location={location} onClose={() => setShowCrisisSelector(false)} user={user} guardians={guardians} />}
       {incomingAlert && <SOSAlertModal alert={incomingAlert} onClose={() => setIncomingAlert(null)} onAccepted={sosId => { setIncomingAlert(null); navigate(`/sos/${sosId}`); }} />}
+
+      <AnimatePresence>
+        {autoSosModal && (
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+              onClick={() => setAutoSosModal(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+              className="relative w-full max-w-md rounded-3xl border border-red-200 bg-white p-6 shadow-2xl"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mb-4">
+                <AlertCircle size={24} className="text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Sudden movement detected</h3>
+              <p className="text-sm text-slate-600 mt-2">{autoSosModal.reason}. Do you want to call SOS now?</p>
+              <p className="text-xs text-slate-500 mt-1">Your phone vibrated to draw immediate attention.</p>
+
+              <div className="mt-5 flex gap-3">
+                <button
+                  onClick={handleAutoSosCall}
+                  disabled={autoSosSending}
+                  className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-60"
+                >
+                  {autoSosSending ? 'Calling SOS...' : 'Call SOS'}
+                </button>
+                <button
+                  onClick={() => setAutoSosModal(null)}
+                  className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
