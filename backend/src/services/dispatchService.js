@@ -7,6 +7,7 @@ const WEIGHT_TRUST = parseFloat(process.env.WEIGHT_TRUST) || 0.2;
 
 const SKILL_CRISIS_MAP = {
   medical: ['cpr', 'first_aid', 'medical_professional'],
+  accident: ['cpr', 'first_aid', 'medical_professional'],
   fire: ['fire_safety', 'first_aid'],
   crime: ['security'],
   natural_disaster: ['first_aid', 'fire_safety'],

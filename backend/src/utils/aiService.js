@@ -26,6 +26,10 @@ const FALLBACK_GUIDANCE = {
     steps: ['Ensure scene is safe.','Call 102 / 112 immediately.','Check responsiveness.','Begin CPR if unresponsive.','Use AED if available.'],
     emergencyScript: 'I have a medical emergency. A person is unresponsive at my location. I need an ambulance immediately.'
   },
+  accident: {
+    steps: ['Ensure scene safety and avoid oncoming traffic.','Call ambulance (108) and emergency services (112).','Do not move severely injured victims unless there is immediate danger.','Control visible bleeding with clean pressure.','Share exact location and number of injured people.'],
+    emergencyScript: 'I am reporting a road accident at my location. Multiple injuries are possible. Please send an ambulance immediately.'
+  },
   fire: {
     steps: ['Evacuate everyone immediately.','Call fire department (101).','Use stairs only.','Seal door gaps if trapped.','Use extinguisher only on small fires.'],
     emergencyScript: 'I am reporting a fire at my location. Please send the fire department immediately.'

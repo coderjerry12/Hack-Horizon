@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Camera, Upload, WarningCircle as AlertTriangle, CheckCircle, SpinnerGap as Loader2, Eye, Lightning as Zap, Shield, House as Home, ClockCounterClockwise as History } from '@phosphor-icons/react';
+import { useAuthStore } from '../store/authStore';
 
 const FLASK_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:5003';
 
@@ -38,8 +39,7 @@ export default function SafetyMonitor() {
     formData.append('model_provider', model === 'ollama' ? 'llava' : 'gemini');
 
     // Pass auth token for auto-SOS trigger
-    const stored = localStorage.getItem('nearhelp-auth');
-    const token = stored ? JSON.parse(stored)?.state?.user?.accessToken : null;
+    const token = useAuthStore.getState().accessToken;
     if (token) formData.append('access_token', token);
 
     // Pass location if available

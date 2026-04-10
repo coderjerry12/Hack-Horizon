@@ -1,5 +1,6 @@
 import json
 import time
+import os
 import requests
 import numpy as np
 import cv2
@@ -14,18 +15,18 @@ frame_buffer = []
 last_ai_call = 0
 COOLDOWN = 60  # seconds
 
-# Crisis-type → email recipient mapping (matches backend .env)
+# Crisis-type → email recipient mapping (env-driven)
 CRISIS_EMAIL_MAP = {
-    "medical":          "awaishehsan22@gmail.com",
-    "accident":         "awaishehsan22@gmail.com",
-    "fire":             "awaishehsan077@gmail.com",
-    "crime":            "awaishehsan86@gmail.com",
-    "natural_disaster": "awaishehsan86@gmail.com",
-    "other":            "awaishehsan86@gmail.com",
+    "medical":          os.getenv("EMAIL_MEDICAL") or os.getenv("EMAIL_DEFAULT") or EMAIL_TO,
+    "accident":         os.getenv("EMAIL_MEDICAL") or os.getenv("EMAIL_DEFAULT") or EMAIL_TO,
+    "fire":             os.getenv("EMAIL_FIRE") or os.getenv("EMAIL_DEFAULT") or EMAIL_TO,
+    "crime":            os.getenv("EMAIL_CRIME") or os.getenv("EMAIL_DEFAULT") or EMAIL_TO,
+    "natural_disaster": os.getenv("EMAIL_DISASTER") or os.getenv("EMAIL_DEFAULT") or EMAIL_TO,
+    "other":            os.getenv("EMAIL_DEFAULT") or EMAIL_TO,
 }
 
 # Backend API URL for auto-triggering SOS
-BACKEND_URL = "http://localhost:5000"
+BACKEND_URL = os.getenv("BACKEND_API_URL", "http://localhost:5000")
 
 
 def get_email_for_crisis(crisis_type: str) -> str:

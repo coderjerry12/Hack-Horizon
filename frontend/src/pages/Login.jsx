@@ -18,8 +18,7 @@ function Login() {
     setLoading(true);
     try {
       const response = await authAPI.login(formData);
-      const { user } = response.data.data;
-      setAuth(user);
+      setAuth(response.data.data);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');

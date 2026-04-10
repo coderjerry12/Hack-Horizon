@@ -12,7 +12,12 @@ const generateTokens = async (userId) => {
   return { accessToken, refreshToken };
 };
 
-const cookieOptions = { httpOnly: true, secure: true, sameSite: "none" };
+const isProduction = process.env.NODE_ENV === 'production';
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax'
+};
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;

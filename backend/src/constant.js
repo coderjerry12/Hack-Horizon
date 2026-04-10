@@ -1,5 +1,6 @@
 export const CRISIS_TYPES = {
   MEDICAL: 'medical',
+  ACCIDENT: 'accident',
   FIRE: 'fire',
   CRIME: 'crime',
   NATURAL_DISASTER: 'natural_disaster',
