@@ -52,6 +52,13 @@ export default function Landing() {
               <ArrowRight weight="bold" className="w-4 h-4" />
             </div>
           </button>
+
+          <button 
+            onClick={() => navigate("/report")}
+            className="group px-6 py-3 rounded-full bg-red-600 text-white font-medium text-sm tracking-wide active:scale-[0.98] transition-transform w-max flex items-center gap-2 shadow-lg shadow-red-600/20"
+          >
+            <span>🚨 Report Emergency (No Login)</span>
+          </button>
         </motion.div>
 
         <motion.div 
