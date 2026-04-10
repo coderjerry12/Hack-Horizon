@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Camera, Upload, AlertTriangle, CheckCircle, Loader2, Eye, Zap, Shield, Home, History } from 'lucide-react';
 
-const FLASK_URL = 'http://localhost:5003';
+const FLASK_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:5003';
 
 export default function SafetyMonitor() {
   const navigate = useNavigate();

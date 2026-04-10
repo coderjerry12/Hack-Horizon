@@ -20,7 +20,8 @@ export default function SetupAccount() {
     setLoading(true);
     try {
       const accessToken = localStorage.getItem("accessToken");
-      const res = await fetch("http://localhost:8000/api/v1/auth/setup-account", {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const res = await fetch(`${API_URL}/api/v1/auth/setup-account`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
