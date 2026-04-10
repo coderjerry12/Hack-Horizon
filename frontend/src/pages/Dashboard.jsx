@@ -12,6 +12,7 @@ import ScreenPopup from '../components/ScreenPopup';
 import PageLoader from '../components/PageLoader';
 import ResourceMap from '../components/ResourceMap';
 import HospitalFinder from '../components/HospitalFinder';
+import MapGestureGuard from '../components/MapGestureGuard';
 import {
   SignOut as LogOut, ClockCounterClockwise as History, Shield, MapPin, Bell, WarningCircle as AlertCircle, CaretRight as ChevronRight,
   User, UserPlus, X, Heartbeat as HeartPulse, ShieldCheck, Camera, Buildings as Building2,
@@ -311,29 +312,29 @@ function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 overflow-x-hidden">
       <ScreenPopup popup={popup} onClose={() => setPopup(null)} />
 
       {/* Top Nav */}
       <nav className="fixed top-0 w-full z-[1000] bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center shadow-sm shadow-red-600/30">
               <Bell size={16} className="text-white" />
             </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">RakshaSetu</span>
+            <span className="font-bold text-slate-900 text-base md:text-lg tracking-tight truncate">RakshaSetu</span>
             {!isOnline && (
-              <span className="badge-warning animate-pulse">Offline Mode</span>
+              <span className="hidden sm:inline-flex badge-warning animate-pulse">Offline Mode</span>
             )}
             {pendingSOS.length > 0 && (
-              <span className="badge-emergency animate-pulse">{pendingSOS.length} active</span>
+              <span className="hidden sm:inline-flex badge-emergency animate-pulse">{pendingSOS.length} active</span>
             )}
           </div>
 
-          <div className="flex items-center gap-1">
-            <button onClick={() => navigate('/dashboard')} className="nav-link bg-red-50 text-red-600" title="Dashboard"><Bell size={20} /></button>
-            <button onClick={() => navigate('/monitor')} className="nav-link" title="Safety Monitor"><Camera size={20} /></button>
-            <button onClick={() => navigate('/history')} className="nav-link" title="History"><History size={20} /></button>
+          <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
+            <button onClick={() => navigate('/dashboard')} className="nav-link p-2 md:p-2.5 bg-red-50 text-red-600" title="Dashboard"><Bell size={19} /></button>
+            <button onClick={() => navigate('/monitor')} className="nav-link p-2 md:p-2.5" title="Safety Monitor"><Camera size={19} /></button>
+            <button onClick={() => navigate('/history')} className="nav-link p-2 md:p-2.5" title="History"><History size={19} /></button>
             {user?.role === 'admin' && <button onClick={() => navigate('/admin')} className="hidden md:flex nav-link items-center gap-1.5 text-xs font-semibold px-3"><Shield size={14} />Admin</button>}
             <div className="w-px h-6 bg-slate-200 mx-1" />
             <div className="hidden md:flex items-center gap-2 px-3">
@@ -345,7 +346,7 @@ function Dashboard() {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 pt-20 pb-12">
+      <main className="max-w-7xl mx-auto px-3 md:px-4 pt-20 pb-12">
         {/* SOS Hero */}
         <section className="py-10 flex flex-col items-center">
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center mb-8">
@@ -363,22 +364,22 @@ function Dashboard() {
           </motion.button>
 
           {/* Quick stats */}
-          <div className="flex items-center gap-6 mt-8 text-center">
-            <div><p className="text-2xl font-bold text-slate-900">{pendingSOS.length}</p><p className="text-xs text-slate-500 font-medium">Active Alerts</p></div>
-            <div className="w-px h-8 bg-slate-200" />
-            <div><p className="text-2xl font-bold text-slate-900">{nearestHospitals.length}</p><p className="text-xs text-slate-500 font-medium">Hospitals Nearby</p></div>
-            <div className="w-px h-8 bg-slate-200" />
-            <div><p className="text-2xl font-bold text-slate-900">{guardians.length}</p><p className="text-xs text-slate-500 font-medium">Guardians</p></div>
+          <div className="grid grid-cols-3 gap-3 sm:gap-6 mt-8 w-full max-w-md text-center">
+            <div><p className="text-xl sm:text-2xl font-bold text-slate-900">{pendingSOS.length}</p><p className="text-[11px] sm:text-xs text-slate-500 font-medium">Active Alerts</p></div>
+            <div><p className="text-xl sm:text-2xl font-bold text-slate-900">{nearestHospitals.length}</p><p className="text-[11px] sm:text-xs text-slate-500 font-medium">Hospitals Nearby</p></div>
+            <div><p className="text-xl sm:text-2xl font-bold text-slate-900">{guardians.length}</p><p className="text-[11px] sm:text-xs text-slate-500 font-medium">Guardians</p></div>
           </div>
         </section>
 
         {/* Tab Navigation */}
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl mb-8 w-fit mx-auto">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => setActiveTab(id)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-              <Icon size={15} />{label}
-            </button>
-          ))}
+        <div className="mb-8 overflow-x-auto">
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl w-max min-w-full sm:min-w-0 sm:w-fit mx-auto">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => setActiveTab(id)} className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${activeTab === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                <Icon size={15} />{label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <AnimatePresence mode="wait">
@@ -447,6 +448,7 @@ function Dashboard() {
                     <div className="grid lg:grid-cols-[1.5fr_1fr]">
                       <div className="h-[360px] border-b lg:border-b-0 lg:border-r border-slate-100">
                         <MapContainer center={[location.latitude, location.longitude]} zoom={13} className="h-full w-full" zoomControl={false} preferCanvas>
+                          <MapGestureGuard />
                           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                           <FitLiveSOSBounds location={location} points={pendingSOS} />
                           <Marker position={[location.latitude, location.longitude]} icon={userIcon}>
@@ -548,6 +550,7 @@ function Dashboard() {
                       <div className="relative">
                         <div className="h-64">
                           <MapContainer center={[nearestSOS.location.coordinates[1], nearestSOS.location.coordinates[0]]} zoom={14} className="h-full w-full" zoomControl={false} preferCanvas>
+                            <MapGestureGuard />
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                             <FitBounds userLocation={location} sosLocation={[nearestSOS.location.coordinates[1], nearestSOS.location.coordinates[0]]} />
                             <Marker position={[location.latitude, location.longitude]} icon={userIcon} />
@@ -713,7 +716,7 @@ function Dashboard() {
 
       <AnimatePresence>
         {autoSosModal && (
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[1200] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -722,30 +725,31 @@ function Dashboard() {
               onClick={() => setAutoSosModal(null)}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              initial={{ opacity: 0, scale: 0.98, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              exit={{ opacity: 0, scale: 0.98, y: 24 }}
               transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-              className="relative w-full max-w-md rounded-3xl border border-red-200 bg-white p-6 shadow-2xl"
+              className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl border border-red-200 bg-white px-4 sm:px-6 pt-3 sm:pt-6 pb-5 sm:pb-6 shadow-2xl"
             >
-              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mb-4">
-                <AlertCircle size={24} className="text-red-600" />
+              <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-3 sm:hidden" />
+              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mb-4 mx-auto sm:mx-0">
+                <AlertCircle size={24} className="text-red-600" weight="fill" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900">Sudden movement detected</h3>
-              <p className="text-sm text-slate-600 mt-2">{autoSosModal.reason}. Do you want to call SOS now?</p>
-              <p className="text-xs text-slate-500 mt-1">Your phone vibrated to draw immediate attention.</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 text-center sm:text-left">Sudden movement detected</h3>
+              <p className="text-sm sm:text-base text-slate-600 mt-2 text-center sm:text-left">{autoSosModal.reason}. Do you want to call SOS now?</p>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1 text-center sm:text-left">Your phone vibrated to draw immediate attention.</p>
 
-              <div className="mt-5 flex gap-3">
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   onClick={handleAutoSosCall}
                   disabled={autoSosSending}
-                  className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-60"
+                  className="w-full py-3.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 active:scale-[0.98] transition-all disabled:opacity-60"
                 >
                   {autoSosSending ? 'Calling SOS...' : 'Call SOS'}
                 </button>
                 <button
                   onClick={() => setAutoSosModal(null)}
-                  className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors"
+                  className="w-full py-3.5 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 active:scale-[0.98] transition-all"
                 >
                   Close
                 </button>
