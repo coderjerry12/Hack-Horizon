@@ -10,6 +10,7 @@ import adminRoutes from './routes/admin.routes.js';
 import chatbotRoutes from './routes/chatbot.routes.js';
 import hospitalRoutes from './routes/hospital.routes.js';
 import routingRoutes from './routes/routing.routes.js';
+import ambulanceRoutes from './routes/ambulance.routes.js';
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/ai', chatbotRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/routing', routingRoutes);
+app.use('/api/ambulances', ambulanceRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok', message: 'NearHelp API is running' }));
 

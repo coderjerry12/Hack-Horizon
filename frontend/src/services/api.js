@@ -80,4 +80,15 @@ export const routingAPI = {
     api.get('/routing/nearest-hospitals', { params: { lat, lng, radius } })
 };
 
+export const ambulanceAPI = {
+  getAll: () => api.get('/ambulances'),
+  getNearby: (lat, lng, radius = 15000, includeBusy = false) =>
+    api.get('/ambulances/nearby', { params: { lat, lng, radius, includeBusy } }),
+  add: (data) => api.post('/ambulances', data),
+  update: (id, data) => api.put(`/ambulances/${id}`, data),
+  updateStatus: (id, status) => api.put(`/ambulances/${id}/status`, { status }),
+  seed: (longitude, latitude, count = 5) => api.post('/ambulances/seed', { longitude, latitude, count }),
+  delete: (id) => api.delete(`/ambulances/${id}`)
+};
+
 export default api;

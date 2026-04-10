@@ -26,3 +26,9 @@ export const SKILL_TYPES = {
   MEDICAL_PROFESSIONAL: 'medical_professional',
   SECURITY: 'security'
 };
+
+export const AMBULANCE_STATUS = {
+  AVAILABLE: 'available',
+  BUSY: 'busy',
+  OFFLINE: 'offline'
+};

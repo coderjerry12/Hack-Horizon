@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline } from 'react-
 import L from 'leaflet';
 import { useAuthStore } from '../store/authStore';
 import { sosAPI, chatbotAPI, routingAPI } from '../services/api';
-import { getSocket, broadcastSOS, sendMessage, shareLiveLocation } from '../services/socket';
+import { initSocket, getSocket, broadcastSOS, sendMessage, shareLiveLocation } from '../services/socket';
 import ScreenPopup from '../components/ScreenPopup';
 import PageLoader from '../components/PageLoader';
 import AICrisisChat from '../components/AICrisisChat';
@@ -20,6 +20,7 @@ import {
   FirstAidKit,
   PoliceCar,
   FireTruck,
+  Ambulance,
   MapPin as PhosphorMapPin,
   CheckCircle,
   Star
@@ -53,6 +54,7 @@ const getResourceIcon = (resourceType) => {
 const sosPulseIcon = new L.DivIcon({ className: 'sos-pulse-wrapper', html: '<div class="sos-pulse-dot"></div>', iconSize: [22, 22], iconAnchor: [11, 11] });
 const responderIcon = new L.DivIcon({ className: 'user-map-wrapper', html: '<div style="width:16px;height:16px;border-radius:50%;background:#16a34a;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
 const hospitalIcon = new L.DivIcon({ className: '', html: `<div style="width:28px;height:28px;border-radius:8px;background:#2563eb;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(37,99,235,.4)">${renderToStaticMarkup(<FirstAidKit size={14} weight="fill" color="#ffffff" />)}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+const ambulanceIcon = new L.DivIcon({ className: '', html: `<div style="width:24px;height:24px;border-radius:999px;background:#dc2626;border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(220,38,38,.45)">${renderToStaticMarkup(<Ambulance size={12} weight="fill" color="#ffffff" />)}</div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
 
 export default function SOSBroadcast() {
   const { sosId } = useParams();
@@ -62,6 +64,8 @@ export default function SOSBroadcast() {
   const [guidance, setGuidance] = useState(null);
   const [emergencySummary, setEmergencySummary] = useState('');
   const [nearbyResources, setNearbyResources] = useState([]);
+  const [nearbyAmbulances, setNearbyAmbulances] = useState([]);
+  const [assignedAmbulances, setAssignedAmbulances] = useState([]);
   const [nearestHospitals, setNearestHospitals] = useState([]);
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [routePolyline, setRoutePolyline] = useState([]);
@@ -87,7 +91,7 @@ export default function SOSBroadcast() {
 
   useEffect(() => {
     loadSOSData();
-    const socket = getSocket();
+    const socket = initSocket();
     if (socket) {
       socket.emit('join_sos', { sosId });
       socket.on('responder_accepted', ({ responder }) => {
@@ -110,13 +114,25 @@ export default function SOSBroadcast() {
       socket.on('expanding_search', () => setPopup({ type: 'info', message: 'Expanding search radius...' }));
       socket.on('sos_already_taken', () => { setPopup({ type: 'info', message: 'This SOS has already been accepted.' }); setTimeout(() => navigate('/dashboard', { replace: true }), 1500); });
       socket.on('guardians_notified', ({ count, message }) => setPopup({ type: 'success', message: message || `${count} guardian(s) notified first.` }));
+      socket.on('ambulance_dispatched', ({ ambulances }) => {
+        setAssignedAmbulances(prev => {
+          const merged = [...prev];
+          (ambulances || []).forEach((amb) => {
+            if (!merged.some((x) => String(x._id) === String(amb._id))) merged.push(amb);
+          });
+          return merged;
+        });
+        if ((ambulances || []).length > 0) {
+          setPopup({ type: 'success', message: `${ambulances.length} ambulance unit(s) dispatched.` });
+        }
+      });
     }
     const locationInterval = setInterval(() => {
       navigator.geolocation.getCurrentPosition(pos => shareLiveLocation(sosId, pos.coords.longitude, pos.coords.latitude, selectedResponderId));
     }, 5000);
     return () => {
       clearInterval(locationInterval);
-      if (socket) ['responder_accepted','sos_state_updated','new_message','live_location_update','sos_resolved','no_responders_found','expanding_search','sos_already_taken','guardians_notified'].forEach(e => socket.off(e));
+      if (socket) ['responder_accepted','sos_state_updated','new_message','live_location_update','sos_resolved','no_responders_found','expanding_search','sos_already_taken','guardians_notified','ambulance_dispatched'].forEach(e => socket.off(e));
     };
   }, [sosId, selectedResponderId, navigate]);
 
@@ -124,7 +140,18 @@ export default function SOSBroadcast() {
     try {
       const res = await sosAPI.getById(sosId);
       const data = res.data.data;
-      setSos(data.sos); setGuidance(data.guidance); setEmergencySummary(data.emergencySummary || ''); setNearbyResources(data.nearbyResources || []);
+      setSos(data.sos); setGuidance(data.guidance); setEmergencySummary(data.emergencySummary || ''); setNearbyResources(data.nearbyResources || []); setNearbyAmbulances(data.nearbyAmbulances || []);
+      const existingDispatches = (data.sos?.ambulanceDispatches || []).map((d) => ({
+        _id: d.ambulance?._id || d.ambulance,
+        name: d.ambulance?.name || 'Ambulance Unit',
+        vehicleNumber: d.ambulance?.vehicleNumber || 'N/A',
+        phone: d.ambulance?.phone || null,
+        etaMinutes: d.etaMinutes,
+        distanceKm: d.distanceKm,
+        status: d.status,
+        location: d.ambulance?.location
+      }));
+      setAssignedAmbulances(existingDispatches);
       const init = data.sos?.responders || [];
       setResponders(init);
       if (init.length > 0) setSelectedResponderId(init[0].user?._id || null);
@@ -200,6 +227,18 @@ export default function SOSBroadcast() {
             if (!hLat || !hLng) return null;
             return <Marker key={h._id || i} position={[hLat, hLng]} icon={hospitalIcon}><Popup><div className="text-xs"><div className="font-bold text-blue-700">{h.name}</div><div className="text-slate-500">{h.eta} min ETA · {h.distanceKm} km</div>{h.phone && <div className="text-green-600 font-medium">{h.phone}</div>}</div></Popup></Marker>;
           })}
+          {assignedAmbulances.map((amb, i) => {
+            const aLat = amb.location?.coordinates?.[1];
+            const aLng = amb.location?.coordinates?.[0];
+            if (!aLat || !aLng) return null;
+            return <Marker key={`assigned-amb-${amb._id || i}`} position={[aLat, aLng]} icon={ambulanceIcon}><Popup><div className="text-xs"><div className="font-bold text-red-600">{amb.name}</div><div className="text-slate-500">{amb.vehicleNumber}</div><div className="text-slate-500">ETA {amb.etaMinutes ?? '?'} min · {amb.distanceKm ?? '?'} km</div>{amb.phone && <div className="text-green-600 font-medium">{amb.phone}</div>}</div></Popup></Marker>;
+          })}
+          {assignedAmbulances.length === 0 && nearbyAmbulances.slice(0, 3).map((amb, i) => {
+            const aLat = amb.location?.coordinates?.[1];
+            const aLng = amb.location?.coordinates?.[0];
+            if (!aLat || !aLng) return null;
+            return <Marker key={`nearby-amb-${amb._id || i}`} position={[aLat, aLng]} icon={ambulanceIcon}><Popup><div className="text-xs"><div className="font-bold text-red-600">{amb.name}</div><div className="text-slate-500">{amb.vehicleNumber}</div><div className="text-slate-500">ETA {amb.etaMinutes ?? '?'} min · {amb.distanceKm ?? '?'} km</div>{amb.phone && <div className="text-green-600 font-medium">{amb.phone}</div>}</div></Popup></Marker>;
+          })}
           {routePolyline.length > 1 && <Polyline positions={routePolyline} pathOptions={{ color: '#2563eb', weight: 4, opacity: 0.8, dashArray: '8 4' }} />}
         </MapContainer>
 
@@ -261,6 +300,25 @@ export default function SOSBroadcast() {
                     </button>
                   );
                 })}
+              </div>
+
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Ambulance Dispatch</p>
+                {assignedAmbulances.length > 0 ? (
+                  <div className="space-y-1.5 max-h-24 overflow-y-auto">
+                    {assignedAmbulances.map((amb, i) => (
+                      <div key={`amb-row-${amb._id || i}`} className="flex items-center justify-between p-2 rounded-xl bg-red-50 border border-red-100">
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">{amb.name}</p>
+                          <p className="text-[10px] text-slate-500">{amb.vehicleNumber} • ETA {amb.etaMinutes ?? '?'} min • {amb.distanceKm ?? '?'} km</p>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white uppercase font-bold">{amb.status || 'assigned'}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400">No ambulance assigned yet. Dispatch in progress...</p>
+                )}
               </div>
             </>
           )}

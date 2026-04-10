@@ -7,6 +7,7 @@ import { SOS } from '../models/sos.model.js';
 import { User } from '../models/user.model.js';
 import { updateUserLocation, removeUserLocation } from '../services/locationService.js';
 import { findBestResponders } from '../services/dispatchService.js';
+import { assignAmbulancesToSOS } from '../services/ambulanceDispatch.service.js';
 import { SOS_STATUS } from '../constant.js';
 
 let ioInstance = null;
@@ -79,7 +80,8 @@ export const initializeSocket = (server) => {
         const guardianIds = (broadcasterUser?.guardians || []).map(g => g._id.toString());
         const [longitude, latitude] = sos.location.coordinates;
         const responders = await findBestResponders(longitude, latitude, sos.crisisType, sos.broadcastRadius);
-        if (responders.length === 0 && guardianIds.length === 0) { socket.emit('no_responders_found'); return; }
+        const assignedAmbulances = await assignAmbulancesToSOS(sos._id, latitude, longitude, 2);
+        if (responders.length === 0 && guardianIds.length === 0 && assignedAmbulances.length === 0) { socket.emit('no_responders_found'); return; }
         const sosAlertPayload = (responder) => ({ sosId: sos._id, crisisType: sos.crisisType, location: sos.location, address: sos.address, broadcaster: sos.isAnonymous ? null : sos.broadcaster, eta: responder?.eta || null, distance: responder?.distance || null });
         if (guardianIds.length > 0) {
           guardianIds.forEach(gId => {
@@ -103,6 +105,13 @@ export const initializeSocket = (server) => {
             io.to(r.userId.toString()).emit('sos_alert', sosAlertPayload(r));
           });
         }
+
+        if (assignedAmbulances.length > 0) {
+          io.to(sos.broadcaster._id.toString()).emit('ambulance_dispatched', { sosId: sos._id, ambulances: assignedAmbulances });
+          io.to(`sos:${sosId}`).emit('ambulance_dispatched', { sosId: sos._id, ambulances: assignedAmbulances });
+          socket.emit('ambulance_dispatched', { sosId: sos._id, ambulances: assignedAmbulances });
+        }
+
         setTimeout(async () => {
           const updated = await SOS.findById(sosId);
           if (updated.status === SOS_STATUS.ACTIVE && updated.responders.length === 0) socket.emit('expanding_search');

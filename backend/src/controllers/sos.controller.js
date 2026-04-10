@@ -9,6 +9,7 @@ import { SOS_STATUS } from '../constant.js';
 import { emitSOSResolved } from '../socket/index.js';
 import { sendSOSAlert } from '../services/emailAlertService.js';
 import { getNearbyHospitals } from '../services/hospital.service.js';
+import { getNearbyAvailableAmbulances, releaseAmbulancesForSOS } from '../services/ambulanceDispatch.service.js';
 
 export const createSOS = asyncHandler(async (req, res) => {
   const { crisisType, longitude, latitude, address, isAnonymous, broadcastRadius } = req.body;
@@ -23,6 +24,7 @@ export const createSOS = asyncHandler(async (req, res) => {
   await sos.save();
 
   const nearbyResources = await Resource.find({ location: { $near: { $geometry: { type: 'Point', coordinates: [Number(longitude), Number(latitude)] }, $maxDistance: 5000 } }, type: { $in: ['hospital', 'police_station', 'fire_station'] } }).limit(5);
+  const nearbyAmbulances = await getNearbyAvailableAmbulances(Number(latitude), Number(longitude), 15000, 3);
 
   // Send email alert asynchronously (don't block response)
   const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
@@ -38,7 +40,7 @@ export const createSOS = asyncHandler(async (req, res) => {
     medicalHistory: broadcaster?.medicalHistory
   }).catch(err => console.error('[SOS] Email alert failed:', err.message));
 
-  res.status(201).json(new ApiResponse(201, { sos, guidance, nearbyResources }, 'SOS created successfully'));
+  res.status(201).json(new ApiResponse(201, { sos, guidance, nearbyResources, nearbyAmbulances }, 'SOS created successfully'));
 });
 
 export const resolveSOS = asyncHandler(async (req, res) => {
@@ -50,6 +52,7 @@ export const resolveSOS = asyncHandler(async (req, res) => {
   sos.resolvedAt = new Date();
   sos.timeToResolution = (Date.now() - sos.createdAt) / 1000;
   sos.welfareCheckDue = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await releaseAmbulancesForSOS(sos._id);
   await sos.save();
   const debrief = await generateDebriefPrompt(sos.crisisType, sos.timeToResolution, sos.responders.length);
   emitSOSResolved({ sosId: sos._id.toString(), resolvedAt: sos.resolvedAt, debrief, broadcasterId: sos.broadcaster, responderIds: sos.responders.map(e => e.user) });
@@ -102,13 +105,17 @@ export const getPendingSOS = asyncHandler(async (req, res) => {
 });
 
 export const getSOSById = asyncHandler(async (req, res) => {
-  const sos = await SOS.findById(req.params.sosId).populate('broadcaster', 'name phone avatar').populate('responders.user', 'name phone avatar skills trustScore');
+  const sos = await SOS.findById(req.params.sosId)
+    .populate('broadcaster', 'name phone avatar')
+    .populate('responders.user', 'name phone avatar skills trustScore')
+    .populate('ambulanceDispatches.ambulance', 'name phone vehicleNumber location status');
   if (!sos) throw new ApiError(404, 'SOS not found');
   let safeSOS = sos.toObject();
   if (safeSOS.isAnonymous && safeSOS.broadcaster?._id?.toString() !== req.user?._id?.toString()) safeSOS.broadcaster = null;
   const [lng, lat] = safeSOS.location.coordinates;
   const nearbyResources = await Resource.find({ location: { $near: { $geometry: { type: 'Point', coordinates: [lng, lat] }, $maxDistance: 5000 } } }).limit(20);
-  res.json(new ApiResponse(200, { sos: safeSOS, guidance: safeSOS.aiGuidance, emergencySummary: safeSOS.emergencySummary, nearbyResources }, 'SOS details retrieved'));
+  const nearbyAmbulances = await getNearbyAvailableAmbulances(Number(lat), Number(lng), 15000, 5);
+  res.json(new ApiResponse(200, { sos: safeSOS, guidance: safeSOS.aiGuidance, emergencySummary: safeSOS.emergencySummary, nearbyResources, nearbyAmbulances }, 'SOS details retrieved'));
 });
 
 export const getMyHistory = asyncHandler(async (req, res) => {

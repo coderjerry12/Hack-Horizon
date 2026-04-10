@@ -16,6 +16,13 @@ const sosSchema = new mongoose.Schema({
     acceptedAt: { type: Date, default: Date.now },
     rating: { type: Number, min: 0, max: 5, default: null }
   }],
+  ambulanceDispatches: [{
+    ambulance: { type: mongoose.Schema.Types.ObjectId, ref: 'Ambulance', required: true },
+    assignedAt: { type: Date, default: Date.now },
+    etaMinutes: { type: Number, default: null },
+    distanceKm: { type: Number, default: null },
+    status: { type: String, enum: ['assigned', 'arrived', 'cancelled', 'completed'], default: 'assigned' }
+  }],
   isAnonymous: { type: Boolean, default: false },
   isFalseAlert: { type: Boolean, default: false },
   aiGuidance: { steps: [String], emergencyScript: String },
