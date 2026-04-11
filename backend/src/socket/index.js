@@ -179,7 +179,12 @@ export const initializeSocket = (server) => {
         io.to(updated.broadcaster.toString()).emit('sos_state_updated', { sosId: updated._id, status: populatedSOS.status, responders: populatedSOS.responders });
         const sosPayload = populatedSOS.toObject();
         if (sosPayload.isAnonymous && sosPayload.broadcaster?._id?.toString() !== socket.userId) sosPayload.broadcaster = null;
+        
+        // Emit to responder
         socket.emit('sos_accepted', { sos: sosPayload });
+        
+        // Emit to broadcaster so they also get redirected
+        io.to(updated.broadcaster.toString()).emit('sos_accepted', { sos: sosPayload });
       } catch { socket.emit('error', { message: 'Failed to accept SOS' }); }
     });
 

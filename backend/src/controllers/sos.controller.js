@@ -39,6 +39,8 @@ export const createSOS = asyncHandler(async (req, res) => {
   const broadcaster = await User.findById(req.user._id)
     .populate('guardians', 'name email phone')
     .select('name phone medicalHistory guardians');
+  
+  // Send to service email (medical/fire/default) based on crisis type
   sendSOSAlert({
     broadcasterName: broadcaster?.name,
     crisisType,
@@ -50,6 +52,7 @@ export const createSOS = asyncHandler(async (req, res) => {
     medicalHistory: broadcaster?.medicalHistory
   }).catch(err => console.error('[SOS] Email alert failed:', err.message));
 
+  // Send to guardians (parents)
   sendGuardianSOSAlertEmails({
     guardians: broadcaster?.guardians || [],
     wardName: broadcaster?.name,

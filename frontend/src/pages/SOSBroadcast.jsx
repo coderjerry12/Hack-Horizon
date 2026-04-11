@@ -99,6 +99,12 @@ export default function SOSBroadcast() {
         setResponders(prev => prev.some(r => r.user?._id === id) ? prev : [...prev, responder]);
         if (!selectedResponderId && id) setSelectedResponderId(id);
       });
+      socket.on('sos_accepted', ({ sos: acceptedSos }) => {
+        // If someone accepts this SOS and we're not already on this page, navigate to it
+        if (acceptedSos?._id && acceptedSos._id !== sosId) {
+          navigate(`/sos/${acceptedSos._id}`);
+        }
+      });
       socket.on('sos_state_updated', ({ status, responders: next }) => {
         if (status) setSos(prev => prev ? { ...prev, status } : prev);
         if (Array.isArray(next)) { setResponders(next); if (!selectedResponderId && next[0]?.user?._id) setSelectedResponderId(next[0].user._id); }
@@ -132,7 +138,7 @@ export default function SOSBroadcast() {
     }, 5000);
     return () => {
       clearInterval(locationInterval);
-      if (socket) ['responder_accepted','sos_state_updated','new_message','live_location_update','sos_resolved','no_responders_found','expanding_search','sos_already_taken','guardians_notified','ambulance_dispatched'].forEach(e => socket.off(e));
+      if (socket) ['responder_accepted','sos_accepted','sos_state_updated','new_message','live_location_update','sos_resolved','no_responders_found','expanding_search','sos_already_taken','guardians_notified','ambulance_dispatched'].forEach(e => socket.off(e));
     };
   }, [sosId, selectedResponderId, navigate]);
 
