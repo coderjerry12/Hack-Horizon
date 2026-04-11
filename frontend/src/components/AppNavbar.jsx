@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, Camera, ClockCounterClockwise as History, Shield, SignOut as LogOut, X } from '@phosphor-icons/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
@@ -56,6 +56,8 @@ export default function AppNavbar({ beforeNavigate }) {
 
   const isActive = (path) => location.pathname === path;
 
+  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
+
   return (
     <>
       <ScreenPopup popup={popup} onClose={() => setPopup(null)} />
@@ -63,9 +65,7 @@ export default function AppNavbar({ beforeNavigate }) {
       <nav className="fixed top-0 w-full z-[1000] bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 md:px-4 h-16 flex items-center justify-between gap-2">
           <Link to="/dashboard" className="flex items-center gap-2 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center shadow-sm shadow-red-600/20">
-              <Bell size={16} className="text-white" weight="fill" />
-            </div>
+            <img src={logoSrc} alt="RakshaSetu logo" className="w-9 h-9 rounded-xl object-cover border border-slate-200" />
             <span className="font-bold text-slate-900 text-base md:text-lg tracking-tight truncate">RakshaSetu</span>
           </Link>
 
