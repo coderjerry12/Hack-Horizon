@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Camera, Upload, WarningCircle as AlertTriangle, CheckCircle, SpinnerGap as Loader2, Eye, Lightning as Zap, Shield, House as Home, ClockCounterClockwise as History } from '@phosphor-icons/react';
+import { ArrowLeft, Camera, Upload, WarningCircle as AlertTriangle, CheckCircle, SpinnerGap as Loader2, Eye, Lightning as Zap, Shield } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
+import AppNavbar from '../components/AppNavbar';
 
 const FLASK_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:5003';
 
@@ -146,28 +147,33 @@ export default function SafetyMonitor() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-xl border-b border-slate-100 z-40 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-orange-600 flex items-center justify-center"><Eye size={14} className="text-white" /></div>
-              <h1 className="text-base font-bold text-slate-900">Safety Monitor</h1>
-            </div>
-          </div>
+      <AppNavbar beforeNavigate={stopStream} />
+
+      <main className="max-w-4xl mx-auto px-4 pt-20 pb-8">
+        <div className="pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-              <button onClick={() => setModel('gemini')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${model === 'gemini' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Gemini</button>
-              <button onClick={() => setModel('ollama')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${model === 'ollama' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500'}`}>Ollama</button>
+            <div className="w-7 h-7 rounded-lg bg-orange-600 flex items-center justify-center">
+              <Eye size={14} className="text-white" />
             </div>
-            <div className="w-px h-6 bg-slate-200 mx-1" />
-            <button onClick={() => { stopStream(); navigate('/dashboard'); }} className="nav-link" title="Dashboard"><Home size={20} /></button>
-            <button onClick={() => { stopStream(); navigate('/monitor'); }} className="nav-link bg-orange-50 text-orange-600" title="Safety Monitor"><Camera size={20} /></button>
-            <button onClick={() => { stopStream(); navigate('/history'); }} className="nav-link" title="History"><History size={20} /></button>
+            <h1 className="text-base font-bold text-slate-900">Safety Monitor</h1>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+            <button
+              onClick={() => setModel('gemini')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${model === 'gemini' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}
+            >
+              Gemini
+            </button>
+            <button
+              onClick={() => setModel('ollama')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${model === 'ollama' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500'}`}
+            >
+              Ollama
+            </button>
           </div>
         </div>
-      </nav>
 
-      <main className="max-w-4xl mx-auto px-4 pt-24 pb-8">
         <AnimatePresence mode="wait">
           {view === 'home' && (
             <motion.div key="home" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">

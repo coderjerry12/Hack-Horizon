@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import { sosAPI, chatbotAPI, routingAPI } from '../services/api';
 import { initSocket, getSocket, broadcastSOS, sendMessage, shareLiveLocation } from '../services/socket';
 import ScreenPopup from '../components/ScreenPopup';
+import AppNavbar from '../components/AppNavbar';
 import PageLoader from '../components/PageLoader';
 import AICrisisChat from '../components/AICrisisChat';
 import RatingModal from '../components/RatingModal';
@@ -197,15 +198,34 @@ export default function SOSBroadcast() {
 
   const visibleMessages = useMemo(() => !selectedResponderId ? messages : messages.filter(m => (m.responderId || null) === selectedResponderId), [messages, selectedResponderId]);
 
-  if (loading) return <PageLoader text="Connecting to Secure Channel..." />;
-  if (!sos) return <div className="p-8 text-center text-red-600">SOS ID not found</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <AppNavbar />
+        <div className="pt-20">
+          <PageLoader text="Connecting to Secure Channel..." />
+        </div>
+      </div>
+    );
+  }
+  if (!sos) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <AppNavbar />
+        <div className="pt-20 p-8 text-center text-red-600">SOS ID not found</div>
+      </div>
+    );
+  }
 
   const isBroadcaster = sos?.broadcaster?._id === user?._id;
   const [longitude, latitude] = sos.location.coordinates;
 
   return (
-    <div className="h-screen w-full flex flex-col md:flex-row bg-slate-100 overflow-hidden">
+    <div className="min-h-screen bg-slate-100">
       <ScreenPopup popup={popup} onClose={() => setPopup(null)} />
+      <AppNavbar />
+
+      <div className="h-[calc(100vh-4rem)] w-full flex flex-col md:flex-row overflow-hidden">
 
       {/* Map */}
       <div className={`relative isolate transition-all duration-300 ${isFullscreen ? 'w-full h-full absolute z-50' : 'w-full md:w-3/5 h-[42vh] md:h-full'}`}>
@@ -391,6 +411,7 @@ export default function SOSBroadcast() {
       </div>
 
       {showRatingModal && <RatingModal sosId={sosId} responders={responders} debrief={resolveDebrief} onClose={() => navigate('/dashboard')} />}
+      </div>
     </div>
   );
 }

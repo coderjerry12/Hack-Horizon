@@ -9,6 +9,7 @@ import { attachAutoSync, getQueue } from '../services/offlineSOSQueue';
 import CrisisSelector from '../components/CrisisSelector';
 import SOSAlertModal from '../components/SOSAlertModal';
 import ScreenPopup from '../components/ScreenPopup';
+import AppNavbar from '../components/AppNavbar';
 import PageLoader from '../components/PageLoader';
 import ResourceMap from '../components/ResourceMap';
 import HospitalFinder from '../components/HospitalFinder';
@@ -75,7 +76,7 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 function Dashboard() {
-  const { user, logout, setAuth } = useAuthStore();
+  const { user, setAuth } = useAuthStore();
   const [showCrisisSelector, setShowCrisisSelector] = useState(false);
   const [incomingAlert, setIncomingAlert] = useState(null);
   const [location, setLocation] = useState(null);
@@ -90,8 +91,6 @@ function Dashboard() {
   const [welfareChecks, setWelfareChecks] = useState([]);
   const [nearestHospitals, setNearestHospitals] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
-  const [medicalForm, setMedicalForm] = useState({ bloodType: 'Unknown', allergies: '', medications: '', conditions: '', emergencyNotes: '' });
-  const [medicalSaving, setMedicalSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [recentActivity, setRecentActivity] = useState([]);
   const [autoSosEnabled, setAutoSosEnabled] = useState(false);
@@ -201,8 +200,6 @@ function Dashboard() {
       return !nearest || d < nearest.distanceKm ? { ...sos, distanceKm: d } : nearest;
     }, null);
   }, [pendingSOS, location]);
-
-  const handleLogout = async () => { try { await authAPI.logout(); } catch {} logout(); navigate('/login'); };
 
   const triggerAutoSosModal = (reason) => {
     const now = Date.now();
@@ -320,36 +317,7 @@ function Dashboard() {
     <div className="min-h-screen bg-slate-50 overflow-x-hidden">
       <ScreenPopup popup={popup} onClose={() => setPopup(null)} />
 
-      {/* Top Nav */}
-      <nav className="fixed top-0 w-full z-[1000] bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 md:px-4 h-16 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center shadow-sm shadow-red-600/30">
-              <Bell size={16} className="text-white" />
-            </div>
-            <span className="font-bold text-slate-900 text-base md:text-lg tracking-tight truncate">RakshaSetu</span>
-            {!isOnline && (
-              <span className="hidden sm:inline-flex badge-warning animate-pulse">Offline Mode</span>
-            )}
-            {pendingSOS.length > 0 && (
-              <span className="hidden sm:inline-flex badge-emergency animate-pulse">{pendingSOS.length} active</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
-            <button onClick={() => navigate('/dashboard')} className="nav-link p-2 md:p-2.5 bg-red-50 text-red-600" title="Dashboard"><Bell size={19} /></button>
-            <button onClick={() => navigate('/monitor')} className="nav-link p-2 md:p-2.5" title="Safety Monitor"><Camera size={19} /></button>
-            <button onClick={() => navigate('/history')} className="nav-link p-2 md:p-2.5" title="History"><History size={19} /></button>
-            {user?.role === 'admin' && <button onClick={() => navigate('/admin')} className="hidden md:flex nav-link items-center gap-1.5 text-xs font-semibold px-3"><Shield size={14} />Admin</button>}
-            <div className="w-px h-6 bg-slate-200 mx-1" />
-            <div className="hidden md:flex items-center gap-2 px-3">
-              <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">{user?.name?.[0]?.toUpperCase()}</div>
-              <span className="text-sm font-medium text-slate-700">{user?.name?.split(' ')[0]}</span>
-            </div>
-            <button onClick={handleLogout} className="nav-link text-red-500 hover:text-red-600 hover:bg-red-50" title="Logout"><LogOut size={18} /></button>
-          </div>
-        </div>
-      </nav>
+      <AppNavbar />
 
       <main className="max-w-7xl mx-auto px-3 md:px-4 pt-20 pb-12">
         {/* SOS Hero */}
@@ -399,10 +367,7 @@ function Dashboard() {
                     <div><p className="font-bold text-slate-900">Quick Actions</p><p className="text-xs text-slate-500">Fast access to emergency features</p></div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <button onClick={() => setShowCrisisSelector(true)} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-red-50 hover:bg-red-100 border border-red-100 transition-colors group">
-                      <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center group-hover:scale-110 transition-transform"><Bell size={20} className="text-white" /></div>
-                      <span className="text-xs font-semibold text-slate-900">Send SOS</span>
-                    </button>
+                  
                     <button onClick={() => navigate('/monitor')} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-100 transition-colors group">
                       <div className="w-12 h-12 rounded-full bg-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform"><Camera size={20} className="text-white" /></div>
                       <span className="text-xs font-semibold text-slate-900">AI Monitor</span>
@@ -414,6 +379,10 @@ function Dashboard() {
                     <button onClick={() => navigate('/history')} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-100 transition-colors group">
                       <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform"><History size={20} className="text-white" /></div>
                       <span className="text-xs font-semibold text-slate-900">History</span>
+                    </button>
+                    <button onClick={() => navigate('/my-emergency-qr')} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors group">
+                      <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center group-hover:scale-110 transition-transform"><User size={20} className="text-white" /></div>
+                      <span className="text-xs font-semibold text-slate-900">Emergency QR</span>
                     </button>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
