@@ -33,7 +33,7 @@ export default function Landing() {
       <nav className="fixed top-0 w-full z-50 bg-[#f7f8f5]/90 backdrop-blur-xl border-b border-zinc-200/70">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="RakshaSetu logo" className="w-7 h-7 rounded object-cover" />
+            <img src="/logo.png" alt="RakshaSetu logo" className="w-7 h-7 rounded object-cover" />
             <span className="font-semibold text-gray-900 text-lg">RakshaSetu</span>
           </Link>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-500">

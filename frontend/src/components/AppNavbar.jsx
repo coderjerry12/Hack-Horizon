@@ -56,7 +56,7 @@ export default function AppNavbar({ beforeNavigate }) {
 
   const isActive = (path) => location.pathname === path;
 
-  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
+  const logoSrc = "/logo.png";
 
   return (
     <>
