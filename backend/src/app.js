@@ -11,6 +11,7 @@ import chatbotRoutes from './routes/chatbot.routes.js';
 import hospitalRoutes from './routes/hospital.routes.js';
 import routingRoutes from './routes/routing.routes.js';
 import ambulanceRoutes from './routes/ambulance.routes.js';
+import publicRoutes from './routes/public.routes.js';
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/ai', chatbotRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/routing', routingRoutes);
 app.use('/api/ambulances', ambulanceRoutes);
+app.use('/api/public', publicRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok', message: 'RakshaSetu API is running' }));
 

@@ -2,6 +2,7 @@ import { User } from '../models/user.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import crypto from 'crypto';
 
 const generateTokens = async (userId) => {
   const user = await User.findById(userId);
@@ -107,4 +108,33 @@ export const getGuardians = asyncHandler(async (req, res) => {
 export const getWards = asyncHandler(async (req, res) => {
   const wards = await User.find({ guardians: req.user._id }).select('name email phone avatar isVulnerable');
   res.json(new ApiResponse(200, { wards }, 'Wards retrieved'));
+});
+
+export const getEmergencyCardToken = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('emergencyCardToken emergencyCardTokenCreatedAt');
+  if (!user) throw new ApiError(404, 'User not found');
+
+  if (!user.emergencyCardToken) {
+    // Extremely low probability of collision, but handle duplicate-key safely.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        user.emergencyCardToken = crypto.randomBytes(18).toString('hex');
+        user.emergencyCardTokenCreatedAt = new Date();
+        await user.save({ validateBeforeSave: false });
+        break;
+      } catch (e) {
+        // Mongo duplicate key
+        if (e?.code === 11000 && attempt < 2) continue;
+        throw e;
+      }
+    }
+  } else if (!user.emergencyCardTokenCreatedAt) {
+    user.emergencyCardTokenCreatedAt = new Date();
+    await user.save({ validateBeforeSave: false });
+  }
+
+  res.json(new ApiResponse(200, {
+    token: user.emergencyCardToken,
+    createdAt: user.emergencyCardTokenCreatedAt
+  }, 'Emergency card token retrieved'));
 });
