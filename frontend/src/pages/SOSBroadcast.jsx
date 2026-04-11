@@ -6,7 +6,6 @@ import { useAuthStore } from '../store/authStore';
 import { sosAPI, chatbotAPI, routingAPI } from '../services/api';
 import { initSocket, getSocket, broadcastSOS, sendMessage, shareLiveLocation } from '../services/socket';
 import ScreenPopup from '../components/ScreenPopup';
-import AppNavbar from '../components/AppNavbar';
 import PageLoader from '../components/PageLoader';
 import AICrisisChat from '../components/AICrisisChat';
 import RatingModal from '../components/RatingModal';
@@ -201,8 +200,7 @@ export default function SOSBroadcast() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <AppNavbar />
-        <div className="pt-20">
+        <div className="pt-6">
           <PageLoader text="Connecting to Secure Channel..." />
         </div>
       </div>
@@ -211,8 +209,7 @@ export default function SOSBroadcast() {
   if (!sos) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <AppNavbar />
-        <div className="pt-20 p-8 text-center text-red-600">SOS ID not found</div>
+        <div className="pt-6 p-8 text-center text-red-600">SOS ID not found</div>
       </div>
     );
   }
@@ -223,9 +220,7 @@ export default function SOSBroadcast() {
   return (
     <div className="min-h-screen bg-slate-100">
       <ScreenPopup popup={popup} onClose={() => setPopup(null)} />
-      <AppNavbar />
-
-      <div className="h-[calc(100vh-4rem)] w-full flex flex-col md:flex-row overflow-hidden">
+      <div className="h-[100vh] w-full flex flex-col md:flex-row overflow-hidden">
 
       {/* Map */}
       <div className={`relative isolate transition-all duration-300 ${isFullscreen ? 'w-full h-full absolute z-50' : 'w-full md:w-3/5 h-[42vh] md:h-full'}`}>

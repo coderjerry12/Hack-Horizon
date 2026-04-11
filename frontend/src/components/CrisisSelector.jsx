@@ -26,6 +26,7 @@ function CrisisSelector({ location, onClose, user, guardians }) {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [offline, setOffline] = useState(!isOnline());
   const [smsSent, setSmsSent] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const guardianPhones = (guardians || []).map((g) => g.phone).filter(Boolean);
 
   useEffect(() => {
@@ -39,6 +40,7 @@ function CrisisSelector({ location, onClose, user, guardians }) {
   const handleSelect = async (typeId) => {
     if (!location) return;
     setLoading(typeId);
+    setErrorMessage('');
     const payload = { crisisType: typeId, longitude: location.longitude, latitude: location.latitude, broadcastRadius, isAnonymous };
 
     if (!isOnline()) {
@@ -54,9 +56,25 @@ function CrisisSelector({ location, onClose, user, guardians }) {
       if (sosId) navigate(`/sos/${sosId}`);
       else setLoading(null);
     } catch (error) {
+      const msg = error?.response?.data?.message || error?.message || 'Failed to send SOS.';
+
+      if (typeof msg === 'string' && msg.toLowerCase().includes('already have an active sos')) {
+        try {
+          const activeRes = await sosAPI.getActive();
+          const activeList = activeRes?.data?.data?.activeSOS || [];
+          const myActive = activeList.find((s) => s?.broadcaster?._id && user?._id && s.broadcaster._id === user._id);
+          if (myActive?._id) {
+            navigate(`/sos/${myActive._id}`);
+            return;
+          }
+        } catch {}
+      }
+
       if (!error.response) {
         enqueueSOS(payload);
         try { triggerSMSFallback({ crisisType: typeId, latitude: location.latitude, longitude: location.longitude, userName: user?.name, userPhone: user?.phone, guardianPhones }); setSmsSent(true); } catch {}
+      } else {
+        setErrorMessage(msg);
       }
       setLoading(null);
     }
@@ -74,6 +92,15 @@ function CrisisSelector({ location, onClose, user, guardians }) {
         </div>
 
         <div className="p-4 overflow-y-auto space-y-3">
+          {errorMessage && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3">
+              <AlertTriangle size={20} className="text-red-600 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">SOS not sent</p>
+                <p className="text-xs text-red-700">{errorMessage}</p>
+              </div>
+            </div>
+          )}
           {offline && (
             <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center gap-3">
               <WifiOff size={20} className="text-amber-600 shrink-0" />

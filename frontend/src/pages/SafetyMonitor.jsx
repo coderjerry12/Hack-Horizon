@@ -1,20 +1,69 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Camera, Upload, WarningCircle as AlertTriangle, CheckCircle, SpinnerGap as Loader2, Eye, Lightning as Zap, Shield } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import AppNavbar from '../components/AppNavbar';
+import { sosAPI } from '../services/api';
 
 const FLASK_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:5003';
+
+const AUTO_SOS_INTENSITY_THRESHOLD = 85;
+const AUTO_SOS_THROTTLE_MS = 2 * 60 * 1000;
+const AUTO_SOS_RADIUS = 1000;
+
+const normalizeCrisisType = (value) => {
+  const v = String(value || '').toLowerCase().trim();
+  if (['medical', 'accident', 'fire', 'crime', 'natural_disaster', 'other'].includes(v)) return v;
+  if (v.includes('fire')) return 'fire';
+  if (v.includes('crime') || v.includes('threat') || v.includes('assault')) return 'crime';
+  if (v.includes('disaster') || v.includes('flood') || v.includes('earthquake') || v.includes('storm')) return 'natural_disaster';
+  if (v.includes('accident')) return 'accident';
+  if (v.includes('medical') || v.includes('bleed') || v.includes('injur')) return 'medical';
+  return 'other';
+};
 
 export default function SafetyMonitor() {
   const navigate = useNavigate();
   const videoRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const lastCoordsRef = useRef(null);
+  const lastAutoSosAtRef = useRef(0);
+
   const [model, setModel] = useState('gemini');
   const [view, setView] = useState('home');
   const [stream, setStream] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [reportData, setReportData] = useState(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const safeSetReportData = (next) => {
+    if (!isMountedRef.current) return;
+    setReportData(next);
+  };
+
+  const getCurrentCoords = async () => {
+    const cached = lastCoordsRef.current;
+    if (cached && Date.now() - cached.ts < 60_000) return cached.coords;
+    if (!navigator.geolocation) return null;
+    return await new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+          lastCoordsRef.current = { coords, ts: Date.now() };
+          resolve(coords);
+        },
+        () => resolve(null),
+        { timeout: 5000, enableHighAccuracy: true, maximumAge: 10_000 }
+      );
+    });
+  };
 
   const startCamera = async () => {
     setView('camera');
@@ -22,10 +71,17 @@ export default function SafetyMonitor() {
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       setStream(s);
       if (videoRef.current) videoRef.current.srcObject = s;
-    } catch { setView('home'); }
+    } catch {
+      setView('home');
+    }
   };
 
-  const stopStream = () => { if (stream) { stream.getTracks().forEach(t => t.stop()); setStream(null); } };
+  const stopStream = () => {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      setStream(null);
+    }
+  };
 
   const captureFrame = video => new Promise(resolve => {
     const canvas = document.createElement('canvas');
@@ -39,33 +95,25 @@ export default function SafetyMonitor() {
     blobs.forEach((blob, idx) => formData.append(`image${idx}`, blob, `frame${idx}.jpg`));
     formData.append('model_provider', model === 'ollama' ? 'llava' : 'gemini');
 
-    // Pass auth token for auto-SOS trigger
     const token = useAuthStore.getState().accessToken;
     if (token) formData.append('access_token', token);
 
-    // Pass location if available
-    if (navigator.geolocation) {
-      await new Promise(resolve => navigator.geolocation.getCurrentPosition(
-        pos => {
-          formData.append('email_config', JSON.stringify({
-            name: 'AI Monitor User',
-            phone: 'N/A',
-            emergency_phone: '112',
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            maps_link: `https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`
-          }));
-          resolve();
-        },
-        () => {
-          formData.append('email_config', JSON.stringify({ name: 'AI Monitor User', phone: 'N/A', emergency_phone: '112' }));
-          resolve();
-        },
-        { timeout: 3000 }
-      ));
-    } else {
-      formData.append('email_config', JSON.stringify({ name: 'AI Monitor User', phone: 'N/A', emergency_phone: '112' }));
-    }
+    const coords = await getCurrentCoords();
+    formData.append(
+      'email_config',
+      JSON.stringify(
+        coords
+          ? {
+              name: 'AI Monitor User',
+              phone: 'N/A',
+              emergency_phone: '112',
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              maps_link: `https://maps.google.com/?q=${coords.latitude},${coords.longitude}`,
+            }
+          : { name: 'AI Monitor User', phone: 'N/A', emergency_phone: '112' }
+      )
+    );
 
     const res = await fetch(`${FLASK_URL}/api/analyze`, { method: 'POST', body: formData });
     return res.json();
@@ -73,58 +121,133 @@ export default function SafetyMonitor() {
 
   const analyze = async blobs => {
     setIsAnalyzing(true);
+    let navigatedToSos = false;
     try {
       const data = await sendToFlask(blobs);
-      
-      // Check if it's a cooldown message
+
       if (data.message && data.message.includes('next analysis in')) {
-        setReportData({ 
-          modelUsed: model === 'gemini' ? 'Gemini 2.5 Flash' : 'LLaVA 7b (Ollama)', 
+        safeSetReportData({
+          modelUsed: model === 'gemini' ? 'Gemini 2.5 Flash' : 'LLaVA 7b (Ollama)',
           diagnosis: 'System is in cooldown period to prevent API overuse.',
-          emergency: false, 
+          emergency: false,
           recommendation: data.message,
           isCooldown: true
         });
-      }
-      // Check if no person detected
-      else if (data.message && data.message.includes('No person detected')) {
-        setReportData({ 
-          modelUsed: 'YOLO Detection', 
+      } else if (data.message && data.message.includes('No person detected')) {
+        safeSetReportData({
+          modelUsed: 'YOLO Detection',
           diagnosis: 'No person was detected in the captured frames.',
-          emergency: false, 
+          emergency: false,
           recommendation: 'Ensure a person is visible in the camera frame and try again.',
           isNoPerson: true
         });
-      }
-      // Normal analysis result
-      else {
+      } else {
         const diagnosis = data.crisis_type && data.intensity !== undefined && data.flag
           ? `Crisis Type: ${data.crisis_type}\nSeverity: ${data.intensity}/100\nStatus: ${data.flag}\n\n${data.message || 'Analysis complete.'}`
           : data.message || 'Unknown error.';
-        
-        setReportData({ 
-          modelUsed: model === 'gemini' ? 'Gemini 2.5 Flash' : 'LLaVA 7b (Ollama)', 
-          diagnosis: diagnosis,
-          emergency: data.emergency || false, 
-          recommendation: data.emergency 
-            ? 'IMMEDIATE ATTENTION REQUIRED. Emergency contacts have been notified.' 
+
+        const crisisType = normalizeCrisisType(data.crisis_type);
+        const intensity = Number(data.intensity);
+        const emergency = data.emergency === true || String(data.emergency).toLowerCase() === 'true';
+
+        const baseReport = {
+          modelUsed: model === 'gemini' ? 'Gemini 2.5 Flash' : 'LLaVA 7b (Ollama)',
+          diagnosis,
+          emergency,
+          recommendation: emergency
+            ? 'IMMEDIATE ATTENTION REQUIRED. Emergency contacts have been notified.'
             : 'No critical danger detected. Continue monitoring.',
-          crisisType: data.crisis_type,
-          intensity: data.intensity,
+          crisisType,
+          intensity: Number.isFinite(intensity) ? intensity : undefined,
           flag: data.flag
-        });
+        };
+
+        const shouldAutoSos =
+          emergency === true &&
+          Number.isFinite(intensity) &&
+          intensity >= AUTO_SOS_INTENSITY_THRESHOLD &&
+          Date.now() - lastAutoSosAtRef.current > AUTO_SOS_THROTTLE_MS;
+
+        if (shouldAutoSos) {
+          lastAutoSosAtRef.current = Date.now();
+          safeSetReportData({ ...baseReport, recommendation: 'Emergency detected. Auto-sending SOS now…' });
+
+          if (navigator.onLine === false) {
+            safeSetReportData({
+              ...baseReport,
+              recommendation: 'Emergency detected, but you are offline. Please open Dashboard and send SOS (SMS fallback) manually.',
+            });
+          } else {
+            const coords = await getCurrentCoords();
+            if (!coords) {
+              safeSetReportData({
+                ...baseReport,
+                recommendation: 'Emergency detected, but location permission is required to auto-send SOS. Enable location access and try again.',
+              });
+            } else {
+              try {
+                const payload = {
+                  crisisType,
+                  latitude: coords.latitude,
+                  longitude: coords.longitude,
+                  broadcastRadius: AUTO_SOS_RADIUS,
+                  isAnonymous: false,
+                };
+                const response = await sosAPI.create(payload);
+                const sosId = response?.data?.data?._id || response?.data?.data?.sos?._id;
+
+                if (sosId) {
+                  navigatedToSos = true;
+                  navigate(`/sos/${sosId}`);
+                } else {
+                  safeSetReportData({
+                    ...baseReport,
+                    recommendation: 'Emergency detected, but SOS creation returned an unexpected response. Please open Dashboard and send SOS manually.',
+                  });
+                }
+              } catch (error) {
+                const msg =
+                  error?.response?.data?.message ||
+                  error?.response?.data?.error ||
+                  error?.message ||
+                  'SOS creation failed.';
+
+                if (typeof msg === 'string' && msg.toLowerCase().includes('already have an active sos')) {
+                  try {
+                    const userId = useAuthStore.getState().user?._id;
+                    const activeRes = await sosAPI.getActive();
+                    const activeList = activeRes?.data?.data?.activeSOS || [];
+                    const myActive = activeList.find((s) => s?.broadcaster?._id && userId && s.broadcaster._id === userId);
+                    if (myActive?._id) {
+                      navigatedToSos = true;
+                      navigate(`/sos/${myActive._id}`);
+                      return;
+                    }
+                  } catch {}
+                }
+
+                safeSetReportData({
+                  ...baseReport,
+                  recommendation: `Emergency detected, but auto-SOS failed: ${msg}. Please open Dashboard and send SOS manually.`,
+                });
+              }
+            }
+          }
+        } else {
+          safeSetReportData(baseReport);
+        }
       }
-    } catch (err) {
-      setReportData({ 
-        modelUsed: model, 
+    } catch {
+      safeSetReportData({
+        modelUsed: model,
         diagnosis: 'Analysis failed — ensure Python backend (port 5003) is running.',
-        emergency: false, 
+        emergency: false,
         recommendation: 'Check that the Flask server and Ollama are running.',
         isError: true
       });
-    } finally { 
-      setIsAnalyzing(false); 
-      setView('report'); 
+    } finally {
+      setIsAnalyzing(false);
+      if (!navigatedToSos) setView('report');
     }
   };
 
@@ -132,7 +255,11 @@ export default function SafetyMonitor() {
     if (!videoRef.current) return;
     setIsAnalyzing(true);
     const frames = [];
-    for (let i = 0; i < 3; i++) { const b = await captureFrame(videoRef.current); if (b) frames.push(b); await new Promise(r => setTimeout(r, 200)); }
+    for (let i = 0; i < 3; i++) {
+      const b = await captureFrame(videoRef.current);
+      if (b) frames.push(b);
+      await new Promise(r => setTimeout(r, 200));
+    }
     stopStream();
     await analyze(frames);
   };
