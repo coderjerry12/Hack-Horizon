@@ -63,9 +63,7 @@ export default function AppNavbar({ beforeNavigate }) {
       <nav className="fixed top-0 w-full z-[1000] bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 md:px-4 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center shadow-sm shadow-red-600/30">
-              <Bell size={16} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="RakshaSetu logo" className="w-9 h-9 rounded-xl object-cover border border-slate-200" />
             <span className="font-bold text-slate-900 text-base md:text-lg tracking-tight truncate">RakshaSetu</span>
           </div>
 
