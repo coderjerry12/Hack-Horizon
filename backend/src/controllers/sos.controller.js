@@ -7,7 +7,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { generateCrisisGuidance, generateEmergencySummary, generateDebriefPrompt } from '../utils/aiService.js';
 import { SOS_STATUS } from '../constant.js';
 import { emitSOSResolved } from '../socket/index.js';
-import { sendSOSAlert } from '../services/emailAlertService.js';
+import { sendSOSAlert, sendGuardianSOSAlertEmails } from '../services/emailAlertService.js';
 import { getNearbyHospitals } from '../services/hospital.service.js';
 import { getNearbyAvailableAmbulances, releaseAmbulancesForSOS } from '../services/ambulanceDispatch.service.js';
 
@@ -36,7 +36,9 @@ export const createSOS = asyncHandler(async (req, res) => {
 
   // Send email alert asynchronously (don't block response)
   const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
-  const broadcaster = await User.findById(req.user._id).select('name phone medicalHistory');
+  const broadcaster = await User.findById(req.user._id)
+    .populate('guardians', 'name email phone')
+    .select('name phone medicalHistory guardians');
   sendSOSAlert({
     broadcasterName: broadcaster?.name,
     crisisType,
@@ -47,6 +49,16 @@ export const createSOS = asyncHandler(async (req, res) => {
     guidance,
     medicalHistory: broadcaster?.medicalHistory
   }).catch(err => console.error('[SOS] Email alert failed:', err.message));
+
+  sendGuardianSOSAlertEmails({
+    guardians: broadcaster?.guardians || [],
+    wardName: broadcaster?.name,
+    crisisType,
+    address,
+    latitude: Number(latitude),
+    longitude: Number(longitude),
+    sosId: sos._id.toString()
+  }).catch(err => console.error('[SOS] Guardian email alert failed:', err.message));
 
   res.status(201).json(new ApiResponse(201, { sos, guidance, nearbyResources, nearbyAmbulances }, 'SOS created successfully'));
 });

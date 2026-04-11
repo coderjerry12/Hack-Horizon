@@ -27,7 +27,12 @@ export const authAPI = {
   getGuardians: () => api.get('/auth/guardians'),
   addGuardian: (email) => api.post('/auth/guardians', { email }),
   removeGuardian: (guardianId) => api.delete(`/auth/guardians/${guardianId}`),
-  getWards: () => api.get('/auth/wards')
+  getWards: () => api.get('/auth/wards'),
+  getEmergencyCardToken: () => api.get('/auth/emergency-card-token')
+};
+
+export const publicAPI = {
+  getEmergencyCard: (token) => api.get(`/public/emergency-card/${token}`)
 };
 
 export const sosAPI = {

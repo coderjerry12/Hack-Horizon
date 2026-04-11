@@ -121,24 +121,62 @@ export const initializeSocket = (server) => {
 
     socket.on('accept_sos', async ({ sosId }) => {
       try {
-        const sos = await SOS.findById(sosId);
-        if (!sos) { socket.emit('error', { message: 'SOS not found' }); return; }
-        if (sos.status === SOS_STATUS.RESPONDING || sos.status === SOS_STATUS.RESOLVED) { socket.emit('sos_already_taken', { sosId }); return; }
-        if (sos.responders.some(e => e.user.toString() === socket.userId)) { socket.emit('sos_accepted', { sosId: sos._id, alreadyAccepted: true }); return; }
-        sos.responders.push({ user: socket.userId, acceptedAt: new Date() });
-        if (!sos.timeToAcceptance) sos.timeToAcceptance = (Date.now() - sos.createdAt) / 1000;
-        sos.status = SOS_STATUS.RESPONDING;
-        await sos.save();
+        // Prevent a responder from accepting multiple active SOS simultaneously.
+        const existingAssignment = await SOS.findOne({
+          status: { $in: [SOS_STATUS.ACTIVE, SOS_STATUS.RESPONDING] },
+          'responders.user': socket.userId
+        }).select('_id status');
+
+        if (existingAssignment) {
+          socket.emit('error', { message: 'You are already responding to an active SOS.' });
+          return;
+        }
+
+        // Atomic accept: only one responder can ever transition an SOS from ACTIVE -> RESPONDING.
+        const acceptedAt = new Date();
+        const updated = await SOS.findOneAndUpdate(
+          {
+            _id: sosId,
+            status: SOS_STATUS.ACTIVE,
+            'responders.0': { $exists: false }
+          },
+          {
+            $push: { responders: { user: socket.userId, acceptedAt } },
+            $set: { status: SOS_STATUS.RESPONDING }
+          },
+          { new: true }
+        );
+
+        if (!updated) {
+          const current = await SOS.findById(sosId).select('status responders');
+          if (!current) {
+            socket.emit('error', { message: 'SOS not found' });
+            return;
+          }
+          if (current.responders?.some(e => e.user.toString() === socket.userId)) {
+            socket.emit('sos_accepted', { sosId: current._id, alreadyAccepted: true });
+            return;
+          }
+          socket.emit('sos_already_taken', { sosId });
+          return;
+        }
+
+        // Backfill timeToAcceptance once (best-effort).
+        if (!updated.timeToAcceptance) {
+          updated.timeToAcceptance = (Date.now() - new Date(updated.createdAt).getTime()) / 1000;
+          await updated.save();
+        }
+
         const populatedSOS = await SOS.findById(sosId).populate('broadcaster', 'name phone avatar').populate('responders.user', 'name phone avatar skills trustScore');
         const responderUser = await User.findById(socket.userId).select('name avatar skills trustScore');
         socket.join(`sos:${sosId}`);
-        io.to(sos.broadcaster.toString()).socketsJoin(`sos:${sosId}`);
+        io.to(updated.broadcaster.toString()).socketsJoin(`sos:${sosId}`);
         const responderRoom = `sos:${sosId}:responder:${socket.userId}`;
         socket.join(responderRoom);
-        io.to(sos.broadcaster.toString()).socketsJoin(responderRoom);
-        io.to(sos.broadcaster.toString()).emit('responder_accepted', { sosId: sos._id, responder: populatedSOS.responders[populatedSOS.responders.length - 1], responderMeta: responderUser });
-        io.to(`sos:${sosId}`).emit('sos_state_updated', { sosId: sos._id, status: populatedSOS.status, responders: populatedSOS.responders });
-        io.to(sos.broadcaster.toString()).emit('sos_state_updated', { sosId: sos._id, status: populatedSOS.status, responders: populatedSOS.responders });
+        io.to(updated.broadcaster.toString()).socketsJoin(responderRoom);
+        io.to(updated.broadcaster.toString()).emit('responder_accepted', { sosId: updated._id, responder: populatedSOS.responders[populatedSOS.responders.length - 1], responderMeta: responderUser });
+        io.to(`sos:${sosId}`).emit('sos_state_updated', { sosId: updated._id, status: populatedSOS.status, responders: populatedSOS.responders });
+        io.to(updated.broadcaster.toString()).emit('sos_state_updated', { sosId: updated._id, status: populatedSOS.status, responders: populatedSOS.responders });
         const sosPayload = populatedSOS.toObject();
         if (sosPayload.isAnonymous && sosPayload.broadcaster?._id?.toString() !== socket.userId) sosPayload.broadcaster = null;
         socket.emit('sos_accepted', { sos: sosPayload });

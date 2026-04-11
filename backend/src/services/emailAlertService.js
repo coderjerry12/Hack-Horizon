@@ -30,6 +30,48 @@ export function getRecipientByCrisis(crisisType) {
     return process.env.EMAIL_DEFAULT || process.env.SOS_TEST_EMAIL;
 }
 
+export async function sendGuardianSOSAlertEmails({
+    guardians = [],
+    wardName,
+    crisisType,
+    address,
+    latitude,
+    longitude,
+    sosId
+}) {
+    const recipients = (guardians || [])
+        .map(g => g?.email)
+        .filter(Boolean);
+
+    if (recipients.length === 0) return { sent: 0 };
+
+    const t = (crisisType || 'emergency').toLowerCase();
+    const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+    const appLink = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/sos/${sosId}` : null;
+
+    const subject = `SOS Alert: ${wardName || 'Your ward'} reported ${t}`;
+    const text = [
+        `SOS Alert`,
+        wardName ? `Ward: ${wardName}` : null,
+        `Type: ${t}`,
+        address ? `Address: ${address}` : null,
+        `Location: ${latitude}, ${longitude}`,
+        `Maps: ${mapsLink}`,
+        appLink ? `Open in app: ${appLink}` : null,
+    ].filter(Boolean).join('\n');
+
+    const transporter = getTransporter();
+
+    await transporter.sendMail({
+        from: process.env.SOS_TEST_EMAIL,
+        to: recipients.join(','),
+        subject,
+        text
+    });
+
+    return { sent: recipients.length };
+}
+
 const CRISIS_META = {
     medical:          { emoji: '🚑', color: '#dc2626', label: 'Medical Emergency' },
     fire:             { emoji: '🔥', color: '#ea580c', label: 'Fire Emergency' },

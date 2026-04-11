@@ -8,6 +8,8 @@ import SOSBroadcast from './pages/SOSBroadcast';
 import AdminDashboard from './pages/AdminDashboard';
 import History from './pages/History';
 import SafetyMonitor from './pages/SafetyMonitor';
+import MyEmergencyQR from './pages/MyEmergencyQR';
+import EmergencyCard from './pages/EmergencyCard';
 
 function App() {
   const { user } = useAuthStore();
@@ -21,6 +23,8 @@ function App() {
       <Route path="/sos/:sosId" element={user ? <SOSBroadcast /> : <Navigate to="/login" />} />
       <Route path="/history" element={user ? <History /> : <Navigate to="/login" />} />
       <Route path="/monitor" element={user ? <SafetyMonitor /> : <Navigate to="/login" />} />
+      <Route path="/my-emergency-qr" element={user ? <MyEmergencyQR /> : <Navigate to="/login" />} />
+      <Route path="/emergency-card/:token" element={<EmergencyCard />} />
       <Route path="/admin" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/dashboard" />} />
     </Routes>
   );
