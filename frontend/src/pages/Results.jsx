@@ -13,12 +13,14 @@ import {
 
 export default function Results({ result }) {
   const parseAnalysis = (message) => {
-    const lines = message.split('\n').filter(line => line.trim());
-    return lines[0] || message;
+    const text = typeof message === 'string' ? message : '';
+    const lines = text.split('\n').filter(line => line.trim());
+    return lines[0] || text;
   };
 
   const extractIntensity = (message) => {
-    const match = message.match(/[Ii]ntensity:\s*(\d+)/);
+    const text = typeof message === 'string' ? message : '';
+    const match = text.match(/[Ii]ntensity:\s*(\d+)/);
     return match ? parseInt(match[1]) : 0;
   };
 
@@ -33,8 +35,9 @@ export default function Results({ result }) {
     ? <WarningCircle size={38} weight="fill" />
     : <CheckCircle size={38} weight="fill" />);
 
-  const intensity = extractIntensity(result.message);
-  const analysis = parseAnalysis(result.message);
+  const messageText = typeof result?.message === 'string' ? result.message : '';
+  const intensity = extractIntensity(messageText);
+  const analysis = parseAnalysis(messageText);
   const emergencyColors = {
     'fallen': '#dc2626',
     'unresponsive': '#dc2626',
@@ -97,7 +100,7 @@ export default function Results({ result }) {
             <div className="detail-card">
               <span className="detail-label">Detection Status:</span>
               <span className="detail-value" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                {result.message.includes('No Person')
+                {messageText.includes('No Person')
                   ? <><XCircle size={14} weight="fill" />No Person</>
                   : <><CheckCircle size={14} weight="fill" />Person Detected</>}
               </span>

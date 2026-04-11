@@ -307,10 +307,11 @@ export default function SOSBroadcast() {
                 {responders.map(r => {
                   const hasSkills = r.user?.skills?.length > 0;
                   const selected = selectedResponderId === r.user._id;
+                  const responderName = (r.user?.name || '').trim();
                   return (
                     <button key={r.user._id} onClick={() => setSelectedResponderId(prev => prev === r.user._id ? null : r.user._id)} className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${selected ? 'bg-slate-900 text-white border-slate-900' : hasSkills ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                       {hasSkills ? <Award size={11} className={selected ? 'text-yellow-300' : 'text-amber-500'} /> : <div className="w-1.5 h-1.5 rounded-full bg-green-400" />}
-                      {r.user.name.split(' ')[0]}
+                      {(responderName ? responderName.split(' ')[0] : 'Responder')}
                       {r.user?.trustScore != null && <span className={`text-[9px] ${selected ? 'text-slate-300' : 'text-slate-400'} inline-flex items-center gap-0.5`}><Star size={9} weight="fill" />{(r.user.trustScore * 5).toFixed(1)}</span>}
                     </button>
                   );
