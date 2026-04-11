@@ -32,10 +32,12 @@ export default function Landing() {
       {/* Navbar */}
       <nav className="fixed top-0 w-full z-50 bg-[#f7f8f5]/90 backdrop-blur-xl border-b border-zinc-200/70">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="RakshaSetu logo" className="w-9 h-9 rounded-xl object-cover border border-zinc-200 shadow-sm" />
-            <span className="font-bold text-zinc-900 text-lg tracking-tight">RakshaSetu</span>
-          </div>
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded bg-red-600 flex items-center justify-center">
+              <Bell size={14} className="text-white" weight="fill" />
+            </div>
+            <span className="font-semibold text-gray-900 text-lg">RakshaSetu</span>
+          </Link>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-500">
             <a href="#features" className="hover:text-zinc-900 transition-colors">Features</a>
             <a href="#how" className="hover:text-zinc-900 transition-colors">How it works</a>
