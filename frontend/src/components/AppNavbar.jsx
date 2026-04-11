@@ -56,8 +56,6 @@ export default function AppNavbar({ beforeNavigate }) {
 
   const isActive = (path) => location.pathname === path;
 
-  const logoSrc = "/logo.png";
-
   return (
     <>
       <ScreenPopup popup={popup} onClose={() => setPopup(null)} />
@@ -65,7 +63,9 @@ export default function AppNavbar({ beforeNavigate }) {
       <nav className="fixed top-0 w-full z-[1000] bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 md:px-4 h-16 flex items-center justify-between gap-2">
           <Link to="/dashboard" className="flex items-center gap-2 min-w-0">
-            <img src={logoSrc} alt="RakshaSetu logo" className="w-9 h-9 rounded-xl object-cover border border-slate-200" />
+            <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center shadow-sm shadow-red-600/20">
+              <Bell size={16} className="text-white" weight="fill" />
+            </div>
             <span className="font-bold text-slate-900 text-base md:text-lg tracking-tight truncate">RakshaSetu</span>
           </Link>
 
